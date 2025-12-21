@@ -1,0 +1,55 @@
+# PowerShell
+*.ps1xml
+*.psd1.lock
+/out-
+/test-results/
+*.log
+
+# Excel temporary files
+~$*.xlsx
+
+# Visual Studio
+.vscode/
+.vs/
+*.suo
+*.user
+*.sln.docstates
+*.userprefs
+/artifacts/
+/bin/
+/bld/
+/Build/
+/build/
+/debug/
+/Debug/
+/obj/
+/release/
+/Release/
+/TestResults/
+
+# Rider
+.idea/
+
+# Common
+.DS_Store
+*.[Pp]db
+*.[Tt]log
+*.[Cc]ache
+*.orig
+*~
+*.*~
+*.swp
+*.bak
+*.tmp
+*.[Bb]ak
+*.[Tt]mp
+[Ll]ogs/
+[Tt]emp/
+Thumbs.db
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Archived work
+archived/
