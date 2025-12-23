@@ -80,9 +80,9 @@ PARAMETERS:
 -Retries        (Optional) The number of retries for each ping. Default is 0.
 
 EXAMPLE:
-.\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx'
-.\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -OutputPath 'C:\path\to\PingResults.xlsx' -CsvPath 'C:\path\to\PingResults.csv'
-.\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -OutputPath 'C:\path\to\PingResults.xlsx' -MaxPings 10 -Timeout 2 -Retries 1
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputPath 'C:\Temp\PingResults.xlsx'
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -MaxPings 10 -Timeout 2 -Retries 1
 "@
     return
 }
@@ -94,8 +94,8 @@ EXAMPLE:
 if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) {
     $VerbosePreference = 'Continue'
 }
-Import-Module (Join-Path $PSScriptRoot "..\Ping-Networks\ExcelUtils.psm1") -Force
-Import-Module (Join-Path $PSScriptRoot "..\Ping-Networks\Ping-Networks.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "modules\ExcelUtils.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "modules\Ping-Networks.psm1") -Force
 
 # Get common variables for default paths
 $documentsPath = [Environment]::GetFolderPath('MyDocuments')

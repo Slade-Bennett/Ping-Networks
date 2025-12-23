@@ -21,10 +21,10 @@ Ping-Networks is a PowerShell module that pings all hosts in specified networks 
 
 ## Usage
 
-The `Ping-Networks.ps1` script is located in the `examples` directory. You can run it from the root of the project as follows:
+The main script `Ping-Networks.ps1` is located in the root directory. You can run it as follows:
 
 ```powershell
-.\examples\Ping-Networks.ps1 -InputPath '.\examples\sample-data\NetworkData.xlsx' -OutputPath '.\PingResults.xlsx'
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputPath '.\PingResults.xlsx'
 ```
 
 ### Parameters
@@ -41,7 +41,7 @@ The `Ping-Networks.ps1` script is located in the `examples` directory. You can r
 ### Basic Usage
 
 ```powershell
-.\examples\Ping-Networks.ps1 -InputPath '.\examples\sample-data\NetworkData.xlsx'
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
 ```
 
 This will ping all the networks in the `NetworkData.xlsx` file and create a new Excel file in your Documents folder with the results.
@@ -49,7 +49,7 @@ This will ping all the networks in the `NetworkData.xlsx` file and create a new 
 ### Specify Output Path
 
 ```powershell
-.\examples\Ping-Networks.ps1 -InputPath '.\examples\sample-data\NetworkData.xlsx' -OutputPath 'C:\Temp\PingResults.xlsx'
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputPath 'C:\Temp\PingResults.xlsx'
 ```
 
 This will create the `PingResults.xlsx` file in the `C:\Temp` directory.
@@ -57,7 +57,7 @@ This will create the `PingResults.xlsx` file in the `C:\Temp` directory.
 ### Specify Max Pings
 
 ```powershell
-.\examples\Ping-Networks.ps1 -InputPath '.\examples\sample-data\NetworkData.xlsx' -MaxPings 10
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -MaxPings 10
 ```
 
 This will only ping the first 10 usable hosts in each network.
@@ -68,15 +68,15 @@ The project is organized into modular components for maintainability:
 
 ```
 Ping-Networks/
-├── Ping-Networks/
+├── modules/
 │   ├── Ping-Networks.psm1   # Core functions: subnet calculation, parallel ping
 │   └── ExcelUtils.psm1       # Excel COM automation utilities
-├── examples/
-│   ├── Ping-Networks.ps1     # Main orchestration script
-│   └── sample-data/          # Sample Excel input files
-└── docs/
-    ├── README.md             # This file
-    └── ROADMAP.md            # Development roadmap
+├── sample-data/
+│   └── NetworkData.xlsx      # Sample Excel input file
+├── docs/
+│   ├── README.md             # This file
+│   └── ROADMAP.md            # Development roadmap
+└── Ping-Networks.ps1         # Main entry point script
 ```
 
 ### Key Functions
