@@ -140,22 +140,20 @@ function Start-Ping {
     $tasks = @()
     foreach ($currentHost in $Hosts) {
         $powershell = [powershell]::Create()
-        $powershell.AddScript({
-            param($TargetHost, $Timeout, $Retries)
-            
-            $pingResult = $false
-            for ($i = 0; $i -le $Retries; $i++) {
-                try {
-                    if (Test-Connection -ComputerName $TargetHost -Count 1 -Quiet -ErrorAction Stop -TimeoutSeconds $Timeout) {
-                        $pingResult = $true
-                        break
-                    }
-                } catch {
-                    Write-Warning "Ping failed for '$TargetHost': $_"
-                }
-            }
-
-            $hostname = if ($pingResult) {
+                    $powershell.AddScript({
+                                        param($TargetHost, $Timeout, $Retries)
+                                        
+                                        $pingResult = $false
+                                        for ($i = 0; $i -le $Retries; $i++) {
+                                            try {
+                                                if (Test-Connection -ComputerName $TargetHost -Count 1 -Quiet -ErrorAction Stop -TimeoutSeconds $Timeout) {
+                                                    $pingResult = $true
+                                                    break
+                                                }
+                                            } catch {
+                                                Write-Warning "Ping attempt $($i+1) for '$TargetHost' failed: $($_.Exception.Message)"
+                                            }
+                                        }            $hostname = if ($pingResult) {
                 try {
                     ([System.Net.Dns]::GetHostEntry($TargetHost)).HostName
                 }

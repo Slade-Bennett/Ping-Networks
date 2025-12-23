@@ -171,11 +171,16 @@ try {
             'Hosts Unreachable' = $unreachableCount
         })
 
-        # Add network information to each result
-        $pingResults | ForEach-Object {
-            $_ | Add-Member -MemberType NoteProperty -Name 'Network' -Value $networkIdentifier -Force
-            $allResults.Add($_)
+        # Process ping results
+        [System.Management.Automation.PSObject[]]$pingResultsProcessed = $pingResults | ForEach-Object {
+            [PSCustomObject]@{
+                Network  = $networkIdentifier
+                Host     = $_.Host
+                Status   = if ($_.Reachable) { "Reachable" } else { "Unreachable" }
+                Hostname = $_.Hostname
+            }
         }
+        $allResults.AddRange($pingResultsProcessed)
     }
 
     #region EXPORT RESULTS
