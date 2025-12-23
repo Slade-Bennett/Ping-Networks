@@ -16,6 +16,29 @@ function BytesToUInt32($bytes) {
 
 #region Exported Functions
 
+<#
+.SYNOPSIS
+    Calculates all usable host IP addresses within a given IP network and subnet mask.
+.DESCRIPTION
+    This function takes an IP address and its corresponding subnet mask, and
+    returns a list of all usable IP addresses within that network range.
+    It excludes the network address and broadcast address.
+.PARAMETER IP
+    The IP address of the network (e.g., "192.168.1.0").
+.PARAMETER SubnetMask
+    The subnet mask of the network (e.g., "255.255.255.0").
+.OUTPUTS
+    [string[]]
+    Returns an array of strings, each representing a usable IP address.
+.EXAMPLE
+    Get-UsableHosts -IP "192.168.1.0" -SubnetMask "255.255.255.0"
+    # Returns all IPs from 192.168.1.1 to 192.168.1.254
+.EXAMPLE
+    "10.0.0.0", "10.0.0.255" | ForEach-Object { Get-UsableHosts -IP $_ -SubnetMask "255.255.255.128" }
+.NOTES
+    Uses bitwise operations to calculate network and broadcast addresses.
+    Requires valid IPv4 addresses for input.
+#>
 function Get-UsableHosts {
     [CmdletBinding()]
     param(
@@ -61,6 +84,38 @@ function Get-UsableHosts {
     }
 }
 
+<#
+.SYNOPSIS
+    Pings a list of host IP addresses in parallel using PowerShell jobs.
+.DESCRIPTION
+    This function takes an array of host IP addresses and pings them concurrently.
+    It returns a custom object for each host, indicating whether it's reachable
+    and attempting to resolve its hostname if reachable.
+    Parallel execution is managed using PowerShell Runspace Pools.
+.PARAMETER Hosts
+    An array of IP addresses (strings) to be pinged.
+.PARAMETER Throttle
+    The maximum number of concurrent pings to perform. Defaults to 20.
+.PARAMETER Timeout
+    The timeout in seconds for each individual ping attempt. Defaults to 1.
+.PARAMETER Retries
+    The number of times to retry a ping attempt before marking a host as unreachable. Defaults to 0.
+.OUTPUTS
+    [PSCustomObject[]]
+    Returns an array of custom objects, each with properties:
+    - Host (string): The IP address that was pinged.
+    - Reachable (boolean): True if the host responded to ping, False otherwise.
+    - Hostname (string): The resolved hostname if reachable, "N/A" otherwise.
+.EXAMPLE
+    Start-Ping -Hosts @("192.168.1.1", "192.168.1.10", "8.8.8.8") -Throttle 10
+.EXAMPLE
+    $hostList = Get-UsableHosts -IP "172.16.0.0" -SubnetMask "255.255.255.0"
+    $results = Start-Ping -Hosts $hostList -Timeout 2 -Retries 1
+    $results | Format-Table -AutoSize
+.NOTES
+    Uses Test-Connection and System.Net.Dns.GetHostEntry.
+    Requires PowerShell 5.1 for RunspacePool functionality.
+#>
 function Start-Ping {
     [CmdletBinding()]
     param(
