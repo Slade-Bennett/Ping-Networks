@@ -131,14 +131,14 @@ try {
         Write-Progress -Activity "Processing Networks" -Status "Processing network $networkIndex of $networkCount : $networkIdentifier" -PercentComplete (($networkIndex / $networkCount) * 100)
 
         # Validate network parameters before processing
-        if ([string]::IsNullOrEmpty($network.IP) -or [string]::IsNullOrEmpty($network.SubnetMask) -or [string]::IsNullOrEmpty($network.CIDR)) {
+        if ([string]::IsNullOrEmpty($network.IP) -or [string]::IsNullOrEmpty($network.'Subnet Mask') -or [string]::IsNullOrEmpty($network.CIDR)) {
             Write-Warning "Skipping network entry due to missing or empty IP, SubnetMask, or CIDR for network '$($network.IP)/$($network.CIDR)'."
             continue
         }
 
-        # Get usable hosts
-        $usableHosts = Get-UsableHosts -IP $network.IP -SubnetMask $network.SubnetMask
+        $usableHosts = Get-UsableHosts -IP $network.IP -SubnetMask $network.'Subnet Mask'
         if (-not $usableHosts) {
+            Write-Warning "No usable hosts found for network '$networkIdentifier'. Skipping ping."
             continue
         }
 
@@ -149,7 +149,17 @@ try {
             $usableHosts
         }
 
-        $pingResults = Start-Ping -Hosts $hostsToPing -Timeout $Timeout -Retries $Retries
+        # Validate $hostsToPing before calling Start-Ping
+        if (-not $hostsToPing -or $hostsToPing.Count -eq 0) {
+            Write-Warning "No hosts selected for ping in network '$networkIdentifier'. Skipping ping."
+            continue
+        }
+
+        $pingResults = Start-Ping @{
+            Hosts = $hostsToPing
+            Timeout = $Timeout
+            Retries = $Retries
+        }
         
         $reachableCount = ($pingResults | Where-Object { $_.Reachable }).Count
         $unreachableCount = $hostsToPing.Count - $reachableCount

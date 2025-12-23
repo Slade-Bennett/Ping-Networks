@@ -59,7 +59,7 @@ function Get-UsableHosts {
             $ipBytes[$i] -band $maskBytes[$i]
         }
 
-        $invertedMaskBytes = $maskBytes | ForEach-Object { -bnot $_ }
+        $invertedMaskBytes = $maskBytes | ForEach-Object { -bnot $_ -band 0xFF }
         $broadcastBytes = for ($i = 0; $i -lt 4; $i++) {
             $networkBytes[$i] -bor $invertedMaskBytes[$i]
         }
@@ -69,14 +69,16 @@ function Get-UsableHosts {
 
         if ($firstUsable -gt $lastUsable) {
             Write-Warning "No usable hosts in network $IP with subnet mask $SubnetMask."
-            return # Return nothing
+            return # Return nothing - this returns $null
         }
         
+        $usable = @() # Initialize an array
         for ($i = $firstUsable; $i -le $lastUsable; $i++) {
             $bytes = [BitConverter]::GetBytes($i)
             # Reverse the bytes again to get the correct IP address
-            yield [System.Net.IPAddress](@($bytes[3], $bytes[2], $bytes[1], $bytes[0])).IPAddressToString
+            $usable += [System.Net.IPAddress](@($bytes[3], $bytes[2], $bytes[1], $bytes[0])).IPAddressToString
         }
+        return $usable # Returns the array
     }
     catch {
         Write-Error "Failed to calculate usable hosts for IP '$IP' and SubnetMask '$SubnetMask'. Error: $_"

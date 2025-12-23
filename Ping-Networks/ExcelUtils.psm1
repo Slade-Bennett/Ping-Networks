@@ -103,8 +103,11 @@ function Get-ExcelWorkbook {
 
     $workbook = $null
     try {
-        if (Test-Path $Path) {
-            $workbook = $Excel.Workbooks.Open($Path)
+        # Ensure an absolute path is used for Excel COM object
+        $absolutePath = [System.IO.Path]::GetFullPath($Path)
+
+        if (Test-Path $absolutePath) {
+            $workbook = $Excel.Workbooks.Open($absolutePath)
         } else {
             $workbook = $Excel.Workbooks.Add()
         }
@@ -262,10 +265,11 @@ function Write-ExcelSheet {
             # Write data
             for ($row = 0; $row -lt $Data.Length; $row++) {
                 for ($col = 0; $col -lt $headers.Length; $col++) {
-                    $cell = $sheet.Cells.Item($row + 2, $col + 1)
-                    $value = $Data[$row].($headers[$col])
-                    $cell.Value = $value
-
+                                $cell = $sheet.Cells.Item($row + 2, $col + 1)
+                                $value = $Data[$row].($headers[$col])
+                                
+                                # Explicitly convert value to string to avoid casting issues with Excel COM
+                                $cell.Value = [string]$value
                     # Apply color if this is the designated column and value is in ColorMap
                     if (($headers[$col] -eq $ColorColumn) -and $ColorMap.ContainsKey($value)) {
                         $cell.Interior.Color = $ColorMap[$value]
