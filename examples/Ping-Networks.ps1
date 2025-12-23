@@ -130,6 +130,12 @@ try {
         $networkIdentifier = "$($network.IP)/$($network.CIDR)"
         Write-Progress -Activity "Processing Networks" -Status "Processing network $networkIndex of $networkCount : $networkIdentifier" -PercentComplete (($networkIndex / $networkCount) * 100)
 
+        # Validate network parameters before processing
+        if ([string]::IsNullOrEmpty($network.IP) -or [string]::IsNullOrEmpty($network.SubnetMask) -or [string]::IsNullOrEmpty($network.CIDR)) {
+            Write-Warning "Skipping network entry due to missing or empty IP, SubnetMask, or CIDR for network '$($network.IP)/$($network.CIDR)'."
+            continue
+        }
+
         # Get usable hosts
         $usableHosts = Get-UsableHosts -IP $network.IP -SubnetMask $network.SubnetMask
         if (-not $usableHosts) {
