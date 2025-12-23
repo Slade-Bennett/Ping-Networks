@@ -52,4 +52,5 @@ Thumbs.db
 .DS_Store
 
 # Archived work
+archive.ps1
 archived/

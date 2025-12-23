@@ -74,27 +74,26 @@ EXAMPLE:
 #region INITIALIZATION
 
 # Import our custom functions
-Import-Module ".\ExcelUtils.psm1" -Force
-Import-Module ".\Ping-Networks.psm1" -Force
+Import-Module (Join-Path $PSScriptRoot "..\Ping-Networks\ExcelUtils.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "..\Ping-Networks\Ping-Networks.psm1") -Force
 
-# If no output path is specified, create a unique one
+# Get common variables for default paths
 $documentsPath = [Environment]::GetFolderPath('MyDocuments')
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
+# Handle default OutputPath if not provided
 if (-not $PSBoundParameters.ContainsKey('OutputPath')) {
     $OutputPath = Join-Path -Path $documentsPath -ChildPath "PingResults_$timestamp.xlsx"
 }
 
-if ($PSBoundParameters.ContainsKey('CsvPath') -and -not $PSBoundParameters.ContainsKey('OutputPath')) {
-    $CsvPath = Join-Path -Path $documentsPath -ChildPath "PingResults_$timestamp.csv"
-}
+# CsvPath is only used if explicitly provided; no default generation.
 
-# Resolve the absolute path for the output file
-if ($PSBoundParameters.ContainsKey('OutputPath')) {
-    $OutputPath = Resolve-Path -Path $OutputPath
+# Ensure absolute paths for the output files
+if ($OutputPath) { # Check if OutputPath is set before processing
+    $OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
 }
-if ($PSBoundParameters.ContainsKey('CsvPath')) {
-    $CsvPath = Resolve-Path -Path $CsvPath
+if ($CsvPath) { # Check if CsvPath is set before processing
+    $CsvPath = [System.IO.Path]::GetFullPath($CsvPath)
 }
 
 #endregion
@@ -168,7 +167,7 @@ try {
     if ($allResults.Count -gt 0) {
         if ($OutputPath) {
             try {
-                Write-Host "Exporting results to '$OutputPath'..."
+                Write-Information "Exporting results to '$OutputPath'..."
                 $outputWorkbook = Get-ExcelWorkbook -Path $OutputPath -Excel $excel
                 
                 # Export the summary
@@ -182,7 +181,7 @@ try {
                 
                 Close-ExcelWorkbook -Workbook $outputWorkbook -Path $OutputPath
                 $outputWorkbook = $null # Set to null so we don't release it twice
-                Write-Host "Successfully exported results to '$OutputPath'."
+                Write-Information "Successfully exported results to '$OutputPath'."
             }
             finally {
                 if ($outputWorkbook) {
@@ -193,9 +192,9 @@ try {
         }
 
         if ($CsvPath) {
-            Write-Host "Exporting results to '$CsvPath'..."
+            Write-Information "Exporting results to '$CsvPath'..."
             $allResults | Export-Csv -Path $CsvPath -NoTypeInformation
-            Write-Host "Successfully exported results to '$CsvPath'."
+            Write-Information "Successfully exported results to '$CsvPath'."
         }
     }
     else {
