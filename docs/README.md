@@ -1,16 +1,18 @@
 # Ping-Networks
 
-Ping-Networks is a PowerShell module that pings a list of networks from an Excel file and exports the results to a new Excel or CSV file. It's designed to be a simple and efficient tool for network administrators and engineers.
+Ping-Networks is a PowerShell module that pings all hosts in specified networks from an Excel file and exports comprehensive results to Excel or CSV. It's designed to be a simple, efficient, and reliable tool for network administrators and engineers.
 
 ## Features
 
-*   Reads network information from an Excel file.
-*   Calculates the usable IP addresses for each network.
-*   Pings hosts in parallel for fast and efficient scanning.
-*   Resolves the hostname of reachable hosts.
-*   Exports ping results to an Excel or CSV file.
-*   Creates a summary worksheet with statistics for each network.
-*   Creates a separate worksheet for each network with detailed results.
+*   **Complete Network Scanning:** Calculates and pings ALL usable host addresses in each subnet (not just the first host).
+*   **Universal CIDR Support:** Works with any standard CIDR notation (/8 through /30) - /24, /28, /16, etc.
+*   **Accurate Subnet Calculations:** Uses bitwise operations for precise network address, broadcast address, and host range calculations.
+*   **Parallel Execution:** Pings hosts concurrently using PowerShell background jobs for maximum speed (configurable batch size).
+*   **DNS Resolution:** Automatically resolves hostnames for reachable hosts.
+*   **Excel Integration:** Reads network definitions from Excel and exports results with color-coded status indicators.
+*   **Clean Output:** Generates summary statistics plus detailed per-network worksheets (automatically removes default Excel sheets).
+*   **CSV Export Option:** Alternative CSV output format for programmatic consumption.
+*   **Modular Architecture:** Separated into reusable modules (subnet calculation, ping logic, Excel utilities).
 
 ## Requirements
 
@@ -59,3 +61,38 @@ This will create the `PingResults.xlsx` file in the `C:\Temp` directory.
 ```
 
 This will only ping the first 10 usable hosts in each network.
+
+## Architecture
+
+The project is organized into modular components for maintainability:
+
+```
+Ping-Networks/
+├── Ping-Networks/
+│   ├── Ping-Networks.psm1   # Core functions: subnet calculation, parallel ping
+│   └── ExcelUtils.psm1       # Excel COM automation utilities
+├── examples/
+│   ├── Ping-Networks.ps1     # Main orchestration script
+│   └── sample-data/          # Sample Excel input files
+└── docs/
+    ├── README.md             # This file
+    └── ROADMAP.md            # Development roadmap
+```
+
+### Key Functions
+
+*   **Get-UsableHosts:** Calculates all valid host IPs in a subnet using bitwise operations. Supports any CIDR from /8 to /30.
+*   **Start-Ping:** Performs parallel ICMP pings using PowerShell background jobs with configurable batch sizes.
+*   **Excel Utilities:** Suite of functions for COM automation (New-ExcelSession, Read-ExcelSheet, Write-ExcelSheet, etc.).
+
+## Recent Improvements
+
+### Version 1.1.0 (Latest)
+*   **Fixed critical subnet calculation bug** that caused empty IP addresses to be generated
+*   **Fixed ping execution** - replaced dummy/placeholder code with actual Test-Connection logic
+*   **Added comprehensive inline documentation** explaining subnet calculations and parallel execution
+*   **Improved verbose output** with informative progress messages instead of debug values
+*   **Automatic cleanup** of default Excel sheets (Sheet1, Sheet2, etc.)
+*   **Enhanced error handling** with better validation and user-friendly messages
+
+All hosts in each subnet are now correctly calculated and pinged, not just the first address.

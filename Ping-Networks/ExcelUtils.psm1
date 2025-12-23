@@ -1,5 +1,15 @@
 # ExcelUtils.psm1
-# A module for working with Excel using COM objects.
+# Excel COM Automation Utilities
+#
+# This module provides PowerShell functions for working with Excel workbooks
+# using COM automation. It handles common operations like:
+# - Creating and closing Excel sessions
+# - Opening/creating workbooks
+# - Reading data from worksheets
+# - Writing data to worksheets with formatting
+# - Proper COM object cleanup to prevent Excel process leaks
+#
+# All functions use proper error handling and COM object disposal.
 
 #region Excel Color Constants
 [int]$ExcelColorGreen = 5296274 # A common green color
@@ -254,6 +264,7 @@ function Write-ExcelSheet {
         # Write headers
         if ($Data.Count -gt 0) {
             $headers = $Data[0].PSObject.Properties.Name
+            Write-Verbose "Write-ExcelSheet: Writing headers: ($($headers -join ', ')) to sheet '$WorksheetName'."
             for ($i = 0; $i -lt $headers.Length; $i++) {
                 $sheet.Cells.Item(1, $i + 1) = $headers[$i]
             }

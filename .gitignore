@@ -54,3 +54,11 @@ Thumbs.db
 # Archived work
 archive.ps1
 archived/
+
+# AI Assistant directories
+.claude/
+.gemini/
+
+# Test files
+test-*.ps1
+Test*.xlsx

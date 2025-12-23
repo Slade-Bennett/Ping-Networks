@@ -2,12 +2,30 @@
 
 This roadmap outlines the planned development and future direction for the Ping-Networks project. It is a living document and may be updated periodically to reflect changing priorities and new insights.
 
-## Current Focus (v1.0.0 Release)
+## Completed Milestones
 
-*   **Core Functionality Stabilization:** Ensuring the `Get-UsableHosts` and `Start-Ping` functions are robust, efficient, and thoroughly tested.
-*   **Excel COM Automation Reliability:** Hardening COM object handling for deterministic cleanup and preventing orphaned processes.
-*   **Usability and UX Consistency:** Refining parameter handling, error messages, and default behaviors for a smooth user experience.
-*   **Module Metadata and Documentation:** Completing the `README.md`, `.psd1` module manifest, and establishing a clear repository structure.
+### v1.1.0 (Recent Release) ✅
+*   **Critical Bug Fixes:**
+    *   Fixed subnet calculation bug causing empty IP addresses
+    *   Fixed ping execution - replaced placeholder code with actual Test-Connection logic
+    *   Resolved parameter splatting issues in main script
+*   **Code Quality Improvements:**
+    *   Added comprehensive inline documentation for all functions
+    *   Detailed comments explaining subnet calculation methodology
+    *   Improved verbose output with informative progress messages
+    *   Automatic cleanup of default Excel sheets
+*   **Enhanced Reliability:**
+    *   Better error handling and validation
+    *   Division-by-zero protection in progress calculations
+    *   Proper COM object disposal
+
+### v1.0.0 ✅
+*   **Core Functionality Stabilization:** `Get-UsableHosts` and `Start-Ping` functions are robust and tested.
+*   **Excel COM Automation Reliability:** Hardened COM object handling for deterministic cleanup.
+*   **Usability and UX Consistency:** Refined parameter handling, error messages, and default behaviors.
+*   **Module Metadata and Documentation:** Completed `README.md` and established clear repository structure.
+
+## Current Focus (v1.2.0 Planning)
 
 ## Short-Term Goals (Post v1.0.0)
 

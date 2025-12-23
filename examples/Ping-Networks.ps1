@@ -1,10 +1,26 @@
 <#
 .SYNOPSIS
-    Pings a list of networks from an Excel file and exports the results to a new Excel file using COM automation.
+    Network scanning tool that pings all hosts in specified subnets and exports results to Excel.
+
 .DESCRIPTION
-    This script reads network information (IP, SubnetMask) from an Excel file, calculates the usable IP addresses for each network,
-    pings those addresses in parallel to check for reachability, and resolves their hostnames. The results are then exported to a
-    new Excel file, with a separate worksheet for each network and a summary worksheet.
+    This script performs comprehensive network scanning by:
+    1. Reading network definitions (IP, Subnet Mask, CIDR) from an input Excel file
+    2. Calculating ALL usable host addresses in each subnet (supports any CIDR /8 to /30)
+    3. Pinging hosts in parallel using PowerShell background jobs
+    4. Resolving hostnames for reachable hosts via DNS
+    5. Exporting results to Excel with color-coded status and summary statistics
+
+    ARCHITECTURE:
+    - Ping-Networks.psm1: Core functions (subnet calculation, parallel ping)
+    - ExcelUtils.psm1: Excel COM automation utilities
+    - Ping-Networks.ps1: Main orchestration script (this file)
+
+    KEY FEATURES:
+    - Supports ANY standard CIDR notation (/24, /28, /16, etc.)
+    - Parallel execution for speed (configurable batch size)
+    - Separate Excel worksheets per network + summary tab
+    - Color-coded status cells (green=reachable, red=unreachable)
+    - Hostname resolution for network documentation
 .PARAMETER InputPath
     The path to the input Excel file containing the network data. The file should have three columns: 'IP', 'SubnetMask', and 'CIDR'.
 .PARAMETER OutputPath
@@ -74,6 +90,10 @@ EXAMPLE:
 #region INITIALIZATION
 
 # Import our custom functions
+# Set verbose preference for modules if parent script is verbose
+if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) {
+    $VerbosePreference = 'Continue'
+}
 Import-Module (Join-Path $PSScriptRoot "..\Ping-Networks\ExcelUtils.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "..\Ping-Networks\Ping-Networks.psm1") -Force
 
@@ -119,16 +139,25 @@ try {
         throw "Failed to read networks from '$InputPath'."
     }
 
+    Write-Verbose "Read $($networks.Count) network(s) from Excel file"
+
     $allResults = [System.Collections.Generic.List[pscustomobject]]::new()
     $summaryData = [System.Collections.Generic.List[pscustomobject]]::new()
 
     $networkCount = $networks.Count
     $networkIndex = 0
 
+    if ($networkCount -eq 0) {
+        throw "No networks found in input file. Please ensure the Excel file has data rows."
+    }
+
     foreach ($network in $networks) {
         $networkIndex++
         $networkIdentifier = "$($network.IP)/$($network.CIDR)"
-        Write-Progress -Activity "Processing Networks" -Status "Processing network $networkIndex of $networkCount : $networkIdentifier" -PercentComplete (($networkIndex / $networkCount) * 100)
+        Write-Verbose "Processing network $networkIndex of $networkCount : $networkIdentifier"
+
+        $percentComplete = if ($networkCount -gt 0) { ($networkIndex / $networkCount) * 100 } else { 0 }
+        Write-Progress -Activity "Processing Networks" -Status "Processing network $networkIndex of $networkCount : $networkIdentifier" -PercentComplete $percentComplete
 
         # Validate network parameters before processing
         if ([string]::IsNullOrEmpty($network.IP) -or [string]::IsNullOrEmpty($network.'Subnet Mask') -or [string]::IsNullOrEmpty($network.CIDR)) {
@@ -155,11 +184,8 @@ try {
             continue
         }
 
-        $pingResults = Start-Ping @{
-            Hosts = $hostsToPing
-            Timeout = $Timeout
-            Retries = $Retries
-        }
+        # Ping all hosts in this network
+        $pingResults = Start-Ping -Hosts $hostsToPing -Timeout $Timeout -Retries $Retries
         
         $reachableCount = ($pingResults | Where-Object { $_.Reachable }).Count
         $unreachableCount = $hostsToPing.Count - $reachableCount
@@ -188,21 +214,37 @@ try {
     if ($allResults.Count -gt 0) {
         if ($OutputPath) {
             try {
-                Write-Information "Exporting results to '$OutputPath'..."
+                Write-Verbose "Exporting results to '$OutputPath'..."
                 $outputWorkbook = Get-ExcelWorkbook -Path $OutputPath -Excel $excel
-                
+
                 # Export the summary
-                Write-ExcelSheet -Workbook $outputWorkbook -Data $summaryData -WorksheetName 'Summary'
+                Write-Verbose "Creating Summary sheet..."
+                Write-ExcelSheet -Workbook $outputWorkbook -Data $summaryData -WorksheetName 'Summary' | Out-Null
 
                 # Export the detailed results, grouped by network
                 $allResults | Group-Object -Property Network | ForEach-Object {
                     $networkSheetName = $_.Name.Replace('/', '_').Replace('.', '_')
-                    Write-ExcelSheet -Workbook $outputWorkbook -Data $_.Group -WorksheetName $networkSheetName
+                    Write-Verbose "Creating detail sheet: $networkSheetName"
+                    Write-ExcelSheet -Workbook $outputWorkbook -Data $_.Group -WorksheetName $networkSheetName | Out-Null
                 }
-                
+
+                # Remove any unused default sheets (Sheet1, Sheet2, etc.)
+                Write-Verbose "Cleaning up unused default sheets..."
+                $sheetsToDelete = @()
+                foreach ($sheet in $outputWorkbook.Sheets) {
+                    if ($sheet.Name -match '^Sheet\d+$') {
+                        $sheetsToDelete += $sheet
+                    }
+                }
+
+                foreach ($sheet in $sheetsToDelete) {
+                    Write-Verbose "Deleting unused sheet: $($sheet.Name)"
+                    $sheet.Delete()
+                }
+
                 Close-ExcelWorkbook -Workbook $outputWorkbook -Path $OutputPath
                 $outputWorkbook = $null # Set to null so we don't release it twice
-                Write-Information "Successfully exported results to '$OutputPath'."
+                Write-Host "Successfully exported results to: $OutputPath" -ForegroundColor Green
             }
             finally {
                 if ($outputWorkbook) {
@@ -213,9 +255,9 @@ try {
         }
 
         if ($CsvPath) {
-            Write-Information "Exporting results to '$CsvPath'..."
+            Write-Verbose "Exporting results to CSV: $CsvPath"
             $allResults | Export-Csv -Path $CsvPath -NoTypeInformation
-            Write-Information "Successfully exported results to '$CsvPath'."
+            Write-Host "Successfully exported results to: $CsvPath" -ForegroundColor Green
         }
     }
     else {
