@@ -25,30 +25,183 @@ This roadmap outlines the planned development and future direction for the Ping-
 *   **Usability and UX Consistency:** Refined parameter handling, error messages, and default behaviors.
 *   **Module Metadata and Documentation:** Completed `README.md` and established clear repository structure.
 
-## Current Focus (v1.2.0 Planning)
+## Current Focus (v1.2.0 - Foundation Enhancements)
 
-## Short-Term Goals (Post v1.0.0)
+### Phase 1: Core Output & Reporting Improvements
+*   **Enhanced Progress Reporting:**
+    *   Add time estimates for large scans (e.g., "Scanning 254 hosts, ~2 minutes remaining")
+    *   Display scan rate (hosts/second)
+    *   Show current network being scanned in progress bar
+    *   Add ETA calculation based on current throughput
+*   **HTML Report Generation:**
+    *   Create interactive HTML reports with sortable tables
+    *   Add visual charts (reachable vs unreachable pie charts)
+    *   Include scan metadata (date, time, duration, networks scanned)
+    *   Professional formatting for sharing with stakeholders
+*   **Additional Output Formats:**
+    *   JSON export for programmatic consumption
+    *   XML export for integration with other tools
+    *   CSV export improvements (already supported, enhance with more details)
 
-*   **Enhanced Input Options:**
-    *   Support for CIDR notation directly in the input Excel file.
-    *   Allowing input from CSV files or direct PowerShell arrays/objects.
-*   **Improved Ping Customization:**
-    *   Adding options for custom packet sizes, TTL, and fragmentation.
-    *   Support for ICMP types other than echo request (e.g., timestamp).
-*   **Advanced Host Discovery:**
-    *   Integration with ARP table scanning for local network discovery.
-    *   Option to perform DNS lookups for all hosts, not just reachable ones.
-*   **More Output Formats:**
-    *   Direct export to SQL databases.
-    *   JSON/XML output options for programmatic consumption.
+### Phase 2: Enhanced Input Flexibility
+*   **CIDR Input Improvements:**
+    *   Accept CIDR notation directly in Excel (e.g., "10.0.0.0/24" without separate subnet mask column)
+    *   Support for IP ranges (e.g., "10.0.0.1-10.0.0.50")
+    *   Auto-calculate subnet mask from CIDR notation
+*   **Multiple Input Sources:**
+    *   CSV file input support (alternative to Excel)
+    *   Direct PowerShell arrays/objects as input
+    *   Read from text files (one network per line)
+*   **Advanced Filtering Options:**
+    *   Exclude specific IPs or ranges from scans
+    *   Scan only odd/even IPs (useful for some network designs)
+    *   Custom host lists (scan specific IPs from a larger subnet)
 
-## Long-Term Vision
+## v1.3.0 - Advanced Scanning Capabilities
 
-*   **Web-Based UI:** Developing a lightweight web interface for easy network scanning and visualization, potentially using PowerShell Universal Dashboard or a similar framework.
-*   **Agent-Based Scanning:** Exploring the possibility of deploying agents on remote machines for distributed scanning.
-*   **Integration with IT Automation Platforms:** Seamless integration with platforms like Ansible, Puppet, or Microsoft SCCM.
-*   **Reporting and Alerting:** Generating comprehensive reports and integrating with alerting systems for network changes or issues.
-*   **Cross-Platform Compatibility:** Investigating compatibility with PowerShell Core on Linux/macOS for broader reach (requires re-evaluation of COM dependencies).
+### Phase 3: Port Scanning & Service Discovery
+*   **Port Scanning Features:**
+    *   Add optional port scanning for reachable hosts
+    *   Common ports presets (HTTP:80, HTTPS:443, SSH:22, RDP:3389, etc.)
+    *   Custom port lists and ranges
+    *   TCP/UDP port support
+*   **Service Identification:**
+    *   Identify common services running on open ports
+    *   Banner grabbing for service version detection
+    *   Create service map showing what runs where
+    *   Export service inventory to Excel/HTML
+
+### Phase 4: Network Discovery Enhancements
+*   **MAC Address Resolution:**
+    *   Use ARP tables to get MAC addresses for local network hosts
+    *   MAC OUI lookup to identify device manufacturers
+    *   Device type classification (printer, router, workstation, etc.)
+    *   Export MAC address inventory
+*   **Device Fingerprinting:**
+    *   TTL-based OS detection (Windows=128, Linux=64, macOS=64, etc.)
+    *   Response pattern analysis for device identification
+    *   Device classification and labeling
+*   **Discovery Modes:**
+    *   **Quick Scan** - ping only common hosts (.1, .254, gateways)
+    *   **Smart Scan** - adaptive scanning based on response patterns
+    *   **Stealth Scan** - slower, less aggressive pinging to avoid detection
+
+## v1.4.0 - Data Management & Analysis
+
+### Phase 5: Scan History & Baseline Tracking
+*   **Historical Data Storage:**
+    *   Store scan results in SQLite database or timestamped files
+    *   Maintain scan history for trend analysis
+    *   Configurable retention policies
+*   **Baseline Comparison:**
+    *   Compare current scan vs previous baseline
+    *   Detect network changes (new devices, devices that went offline)
+    *   Generate change reports highlighting differences
+    *   Alert on significant changes
+*   **Trend Analysis:**
+    *   Track host availability over time
+    *   Identify patterns in network changes
+    *   Generate availability statistics
+
+### Phase 6: Advanced Ping Customization
+*   **Custom Ping Parameters:**
+    *   Configurable packet sizes
+    *   Custom TTL values
+    *   Fragmentation control
+    *   Multiple ping counts per host
+*   **Alternative ICMP Types:**
+    *   Support for ICMP timestamp requests
+    *   ICMP echo variations
+    *   Configurable timeout per host
+*   **Retry Logic:**
+    *   Configurable retry attempts
+    *   Adaptive retry delays
+    *   Smart retry based on network conditions
+
+## v1.5.0 - Performance & Scalability
+
+### Phase 7: Multi-Threading Improvements
+*   **Runspace Optimization:**
+    *   Replace PowerShell background jobs with runspaces (10-20x faster)
+    *   Configurable thread pool size
+    *   Dynamic thread allocation based on system resources
+*   **Scan Management:**
+    *   Resume interrupted scans from checkpoint
+    *   Pause/resume functionality
+    *   Abort gracefully with partial results
+*   **Resource Management:**
+    *   Memory usage optimization for large networks
+    *   CPU throttling options
+    *   Network bandwidth control
+
+### Phase 8: Scheduled & Automated Scanning
+*   **Scheduled Scans:**
+    *   Create Windows scheduled tasks for automatic scanning
+    *   Recurring scan schedules (daily, weekly, monthly)
+    *   Time-based scan triggers
+*   **Notifications & Alerting:**
+    *   Email notifications on scan completion
+    *   Alert on network changes or anomalies
+    *   Configurable alert thresholds
+    *   SMTP configuration for email delivery
+*   **Automated Reporting:**
+    *   Auto-generate and distribute reports
+    *   Scheduled report delivery via email
+    *   Report templates and customization
+
+## Long-Term Vision (v2.0+)
+
+### Phase 9: User Interface Development
+*   **PowerShell GUI:**
+    *   Windows Forms or WPF-based GUI
+    *   Point-and-click network configuration
+    *   Real-time scan progress visualization
+    *   Interactive results browsing
+*   **Web-Based Dashboard:**
+    *   PowerShell Universal Dashboard integration
+    *   Browser-based interface for remote access
+    *   Real-time scan monitoring
+    *   Historical data visualization
+    *   RESTful API for programmatic access
+
+### Phase 10: Network Visualization & Mapping
+*   **Visual Network Topology:**
+    *   Generate network topology diagrams
+    *   Automatic subnet layout and organization
+    *   Interactive network maps
+*   **Data Visualization:**
+    *   Subnet utilization heatmaps
+    *   Device distribution charts
+    *   Service availability dashboards
+    *   Historical trend graphs
+
+### Phase 11: Enterprise Integration
+*   **Monitoring Platform Integration:**
+    *   Export to Nagios, PRTG, Zabbix formats
+    *   Direct API integration with monitoring systems
+    *   Alert forwarding to existing alerting platforms
+*   **IT Automation Platforms:**
+    *   Ansible playbook integration
+    *   Puppet module development
+    *   Microsoft SCCM integration
+*   **Database Backends:**
+    *   Direct export to SQL Server, MySQL, PostgreSQL
+    *   Real-time database synchronization
+    *   Data warehouse integration
+
+### Phase 12: Advanced Features
+*   **Distributed Scanning:**
+    *   Agent-based scanning for remote networks
+    *   Coordinated multi-site scanning
+    *   Centralized result aggregation
+*   **Network Documentation:**
+    *   Automatic network documentation generation
+    *   Integration with documentation platforms
+    *   CMDB (Configuration Management Database) updates
+*   **Cross-Platform Support:**
+    *   PowerShell Core compatibility for Linux/macOS
+    *   Alternative to Excel COM (cross-platform Excel libraries)
+    *   Platform-specific optimizations
 
 ## Contributing
 
