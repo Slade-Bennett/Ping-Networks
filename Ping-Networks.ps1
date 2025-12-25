@@ -27,6 +27,8 @@
     The path to the output Excel file where the ping results will be saved.
 .PARAMETER CsvPath
     (Optional) The path to the output CSV file where the ping results will be saved.
+.PARAMETER HtmlPath
+    (Optional) The path to the output HTML report file. Creates an interactive web-based report with charts and sortable tables.
 .PARAMETER MaxPings
     (Optional) The maximum number of hosts to ping per network. If not specified, all usable hosts will be pinged.
 .PARAMETER Timeout
@@ -37,6 +39,9 @@
     .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -OutputPath 'C:\path\to\PingResults.xlsx'
 .EXAMPLE
     .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -OutputPath 'C:\path\to\PingResults.xlsx' -MaxPings 10
+.EXAMPLE
+    .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -HtmlPath 'C:\path\to\Report.html'
+    # Generate an interactive HTML report with charts and sortable tables
 #>
 [CmdletBinding(DefaultParameterSetName = 'Default')]
 param(
@@ -48,6 +53,9 @@ param(
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [string]$CsvPath,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$HtmlPath,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [int]$MaxPings,
@@ -74,6 +82,8 @@ PARAMETERS:
 -OutputPath     (Optional) The path to the output Excel file where the ping results will be saved.
                 Defaults to a timestamped file in the user's Documents folder.
 -CsvPath        (Optional) The path to the output CSV file where the ping results will be saved.
+-HtmlPath       (Optional) The path to the output HTML report. Creates an interactive web report
+                with charts, sortable tables, and professional styling.
 -MaxPings       (Optional) The maximum number of hosts to ping per network. 
                 If not specified, all usable hosts will be pinged.
 -Timeout        (Optional) The timeout in seconds for each ping. Default is 1 second.
@@ -82,6 +92,7 @@ PARAMETERS:
 EXAMPLE:
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputPath 'C:\Temp\PingResults.xlsx'
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -HtmlPath 'C:\Temp\Report.html'
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -MaxPings 10 -Timeout 2 -Retries 1
 "@
     return
@@ -96,6 +107,10 @@ if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) {
 }
 Import-Module (Join-Path $PSScriptRoot "modules\ExcelUtils.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\Ping-Networks.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "modules\ReportUtils.psm1") -Force
+
+# Track scan timing for metadata
+$scanStartTime = Get-Date
 
 # Get common variables for default paths
 $documentsPath = [Environment]::GetFolderPath('MyDocuments')
@@ -263,6 +278,25 @@ try {
             Write-Verbose "Exporting results to CSV: $CsvPath"
             $allResults | Export-Csv -Path $CsvPath -NoTypeInformation
             Write-Host "Successfully exported results to: $CsvPath" -ForegroundColor Green
+        }
+
+        if ($HtmlPath) {
+            Write-Verbose "Generating HTML report: $HtmlPath"
+
+            # Calculate scan duration
+            $scanEndTime = Get-Date
+            $scanDuration = $scanEndTime - $scanStartTime
+            $durationFormatted = "{0:D2}:{1:D2}:{2:D2}" -f $scanDuration.Hours, $scanDuration.Minutes, $scanDuration.Seconds
+
+            # Prepare scan metadata
+            $metadata = @{
+                ScanDate = $scanStartTime.ToString("yyyy-MM-dd HH:mm:ss")
+                Duration = $durationFormatted
+            }
+
+            # Generate HTML report
+            Export-HtmlReport -Results $allResults -OutputPath $HtmlPath -ScanMetadata $metadata
+            Write-Host "Successfully generated HTML report: $HtmlPath" -ForegroundColor Green
         }
     }
     else {
