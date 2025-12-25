@@ -23,16 +23,19 @@
     - Hostname resolution for network documentation
 .PARAMETER InputPath
     The path to the input Excel file containing the network data. The file should have three columns: 'IP', 'SubnetMask', and 'CIDR'.
-.PARAMETER OutputPath
-    The path to the output Excel file where the ping results will be saved.
-.PARAMETER CsvPath
-    (Optional) The path to the output CSV file where the ping results will be saved.
-.PARAMETER HtmlPath
-    (Optional) The path to the output HTML report file. Creates an interactive web-based report with charts and sortable tables.
-.PARAMETER JsonPath
-    (Optional) The path to the output JSON file. Exports results in JSON format for programmatic consumption.
-.PARAMETER XmlPath
-    (Optional) The path to the output XML file. Exports results in structured XML format.
+.PARAMETER OutputDirectory
+    (Optional) The directory where output files will be saved. Defaults to the user's Documents folder.
+    All output files will use timestamped filenames (e.g., PingResults_20251224_235900.xlsx)
+.PARAMETER Excel
+    (Optional) Generate Excel output with color-coded results and summary statistics.
+.PARAMETER Html
+    (Optional) Generate interactive HTML report with charts and sortable tables.
+.PARAMETER Json
+    (Optional) Generate JSON output for programmatic consumption.
+.PARAMETER Xml
+    (Optional) Generate XML output for integration with other tools.
+.PARAMETER Csv
+    (Optional) Generate CSV output for simple tabular data.
 .PARAMETER MaxPings
     (Optional) The maximum number of hosts to ping per network. If not specified, all usable hosts will be pinged.
 .PARAMETER Timeout
@@ -40,18 +43,20 @@
 .PARAMETER Retries
     (Optional) The number of retries for each ping. The default is 0.
 .EXAMPLE
-    .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -OutputPath 'C:\path\to\PingResults.xlsx'
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
+    # Basic usage - generates Excel file in Documents folder by default
 .EXAMPLE
-    .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -OutputPath 'C:\path\to\PingResults.xlsx' -MaxPings 10
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Excel -Html -Json
+    # Generate Excel, HTML, and JSON reports in Documents folder
 .EXAMPLE
-    .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -HtmlPath 'C:\path\to\Report.html'
-    # Generate an interactive HTML report with charts and sortable tables
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html
+    # Generate Excel and HTML reports in custom directory
 .EXAMPLE
-    .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -JsonPath 'C:\path\to\results.json'
-    # Export results in JSON format for programmatic consumption
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html -Json -Xml -Csv
+    # Generate all output formats in custom directory
 .EXAMPLE
-    .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -OutputPath 'results.xlsx' -HtmlPath 'report.html' -JsonPath 'data.json' -XmlPath 'data.xml'
-    # Export to all available formats simultaneously
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -MaxPings 20
+    # Generate HTML report with maximum 20 hosts per network
 #>
 [CmdletBinding(DefaultParameterSetName = 'Default')]
 param(
@@ -59,19 +64,22 @@ param(
     [string]$InputPath,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
-    [string]$OutputPath,
+    [string]$OutputDirectory,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
-    [string]$CsvPath,
+    [switch]$Excel,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
-    [string]$HtmlPath,
+    [switch]$Html,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
-    [string]$JsonPath,
+    [switch]$Json,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
-    [string]$XmlPath,
+    [switch]$Xml,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$Csv,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [int]$MaxPings,
@@ -93,28 +101,33 @@ The results are then exported to a new Excel file, with a separate
 worksheet for each network and a summary worksheet.
 
 PARAMETERS:
--InputPath      (Required) The path to the input Excel file containing the network data. 
-                The file should have three columns: 'IP', 'SubnetMask', and 'CIDR'.
--OutputPath     (Optional) The path to the output Excel file where the ping results will be saved.
-                Defaults to a timestamped file in the user's Documents folder.
--CsvPath        (Optional) The path to the output CSV file where the ping results will be saved.
--HtmlPath       (Optional) The path to the output HTML report. Creates an interactive web report
-                with charts, sortable tables, and professional styling.
--JsonPath       (Optional) The path to the output JSON file. Structured JSON format ideal for
-                APIs, automation, and programmatic processing.
--XmlPath        (Optional) The path to the output XML file. Structured XML format compatible
-                with most XML parsers and integration tools.
--MaxPings       (Optional) The maximum number of hosts to ping per network. 
-                If not specified, all usable hosts will be pinged.
--Timeout        (Optional) The timeout in seconds for each ping. Default is 1 second.
--Retries        (Optional) The number of retries for each ping. Default is 0.
+-InputPath         (Required) The path to the input Excel file containing the network data.
+                   The file should have three columns: 'IP', 'SubnetMask', and 'CIDR'.
+-OutputDirectory   (Optional) The directory where output files will be saved.
+                   Defaults to the user's Documents folder.
+                   All files use timestamped filenames (e.g., PingResults_20251224_235900.xlsx)
+-Excel             (Switch) Generate Excel output with color-coded results.
+-Html              (Switch) Generate interactive HTML report with charts and tables.
+-Json              (Switch) Generate JSON output for programmatic consumption.
+-Xml               (Switch) Generate XML output for integration with other tools.
+-Csv               (Switch) Generate CSV output for simple tabular data.
+-MaxPings          (Optional) The maximum number of hosts to ping per network.
+                   If not specified, all usable hosts will be pinged.
+-Timeout           (Optional) The timeout in seconds for each ping. Default is 1 second.
+-Retries           (Optional) The number of retries for each ping. Default is 0.
 
-EXAMPLE:
+EXAMPLES:
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputPath 'C:\Temp\PingResults.xlsx'
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -HtmlPath 'C:\Temp\Report.html'
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -JsonPath 'C:\Temp\results.json' -XmlPath 'C:\Temp\results.xml'
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -MaxPings 10 -Timeout 2 -Retries 1
+# Basic usage - generates Excel in Documents folder by default
+
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Excel -Html -Json
+# Generate multiple formats in Documents folder
+
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html
+# Generate Excel and HTML in custom directory
+
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -MaxPings 20
+# Generate HTML report with max 20 hosts per network
 "@
     return
 }
@@ -136,36 +149,49 @@ $scanStartTime = Get-Date
 # Get common variables for default paths
 $documentsPath = [Environment]::GetFolderPath('MyDocuments')
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$baseFilename = "PingResults_$timestamp"
 
-# Handle default OutputPath if not provided
-if (-not $PSBoundParameters.ContainsKey('OutputPath')) {
-    $OutputPath = Join-Path -Path $documentsPath -ChildPath "PingResults_$timestamp.xlsx"
+# Handle default OutputDirectory if not provided
+if (-not $PSBoundParameters.ContainsKey('OutputDirectory')) {
+    $OutputDirectory = $documentsPath
+} else {
+    # Ensure absolute path
+    $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
+
+    # Create directory if it doesn't exist
+    if (-not (Test-Path -Path $OutputDirectory)) {
+        New-Item -Path $OutputDirectory -ItemType Directory -Force | Out-Null
+        Write-Verbose "Created output directory: $OutputDirectory"
+    }
 }
 
-# CsvPath is only used if explicitly provided; no default generation.
+# If no format switches specified, default to Excel for backward compatibility
+if (-not ($Excel -or $Html -or $Json -or $Xml -or $Csv)) {
+    $Excel = $true
+    Write-Verbose "No output format specified, defaulting to Excel"
+}
 
-# Ensure absolute paths for the output files
-if ($OutputPath) { # Check if OutputPath is set before processing
-    $OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
-}
-if ($CsvPath) { # Check if CsvPath is set before processing
-    $CsvPath = [System.IO.Path]::GetFullPath($CsvPath)
-}
+# Generate full paths for each requested format
+$OutputPath = if ($Excel) { Join-Path -Path $OutputDirectory -ChildPath "$baseFilename.xlsx" } else { $null }
+$HtmlPath = if ($Html) { Join-Path -Path $OutputDirectory -ChildPath "$baseFilename.html" } else { $null }
+$JsonPath = if ($Json) { Join-Path -Path $OutputDirectory -ChildPath "$baseFilename.json" } else { $null }
+$XmlPath = if ($Xml) { Join-Path -Path $OutputDirectory -ChildPath "$baseFilename.xml" } else { $null }
+$CsvPath = if ($Csv) { Join-Path -Path $OutputDirectory -ChildPath "$baseFilename.csv" } else { $null }
 
 #endregion
 
 #region MAIN PROCESSING
 
-$excel = $null
+$excelApp = $null
 $inputWorkbook = $null
 $outputWorkbook = $null
 try {
-    $excel = New-ExcelSession
-    if (-not $excel) {
+    $excelApp = New-ExcelSession
+    if (-not $excelApp) {
         throw "Failed to start Excel."
     }
 
-    $inputWorkbook = Get-ExcelWorkbook -Path (Resolve-Path -Path $InputPath) -Excel $excel
+    $inputWorkbook = Get-ExcelWorkbook -Path (Resolve-Path -Path $InputPath) -Excel $excelApp
     if (-not $inputWorkbook) {
         throw "Failed to open input workbook '$InputPath'."
     }
@@ -256,7 +282,7 @@ try {
         if ($OutputPath) {
             try {
                 Write-Verbose "Exporting results to '$OutputPath'..."
-                $outputWorkbook = Get-ExcelWorkbook -Path $OutputPath -Excel $excel
+                $outputWorkbook = Get-ExcelWorkbook -Path $OutputPath -Excel $excelApp
 
                 # Export the summary
                 Write-Verbose "Creating Summary sheet..."
@@ -372,8 +398,8 @@ finally {
         $inputWorkbook.Close($false)
         [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($inputWorkbook) | Out-Null
     }
-    if ($excel) {
-        Close-ExcelSession -Excel $excel
+    if ($excelApp) {
+        Close-ExcelSession -Excel $excelApp
     }
 }
 
