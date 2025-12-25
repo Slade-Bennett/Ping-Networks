@@ -219,6 +219,9 @@ function Start-Ping {
     $allResults = @()
     $batchSize = $Throttle
 
+    # Start timing for scan rate calculation
+    $startTime = Get-Date
+
     Write-Verbose "Start-Ping: Beginning ping of $($Hosts.Count) hosts with batch size $batchSize"
 
     # Process hosts in batches to avoid overwhelming the system
@@ -267,10 +270,38 @@ function Start-Ping {
             } -ArgumentList $h
         }
 
-        # Show progress to user
-        $percentComplete = [math]::Min(100, ($i / $Hosts.Count) * 100)
-        Write-Progress -Activity "Pinging Hosts" `
-                       -Status "Batch $([math]::Floor($i/$batchSize) + 1): $($jobs.Count) jobs running" `
+        # Calculate scan statistics
+        $hostsCompleted = $i
+        $elapsedTime = (Get-Date) - $startTime
+        $elapsedSeconds = $elapsedTime.TotalSeconds
+
+        # Calculate scan rate (hosts per second)
+        $scanRate = if ($elapsedSeconds -gt 0) {
+            [math]::Round($hostsCompleted / $elapsedSeconds, 2)
+        } else {
+            0
+        }
+
+        # Calculate ETA
+        $hostsRemaining = $Hosts.Count - $hostsCompleted
+        $etaSeconds = if ($scanRate -gt 0) {
+            [math]::Round($hostsRemaining / $scanRate)
+        } else {
+            0
+        }
+        $etaTimeSpan = [TimeSpan]::FromSeconds($etaSeconds)
+        $etaFormatted = if ($etaSeconds -gt 0) {
+            "{0:D2}:{1:D2}:{2:D2}" -f $etaTimeSpan.Hours, $etaTimeSpan.Minutes, $etaTimeSpan.Seconds
+        } else {
+            "Calculating..."
+        }
+
+        # Show enhanced progress to user (as child progress bar)
+        $percentComplete = [math]::Min(100, ($hostsCompleted / $Hosts.Count) * 100)
+        $statusMessage = "Scanned: $hostsCompleted/$($Hosts.Count) | Rate: $scanRate hosts/sec | ETA: $etaFormatted"
+
+        Write-Progress -Id 2 -ParentId 1 -Activity "Pinging Hosts" `
+                       -Status $statusMessage `
                        -PercentComplete $percentComplete
 
         # Wait for all jobs in this batch to complete
@@ -287,7 +318,7 @@ function Start-Ping {
     }
 
     # Clear progress bar
-    Write-Progress -Activity "Pinging Hosts" -Completed
+    Write-Progress -Id 2 -Activity "Pinging Hosts" -Completed
 
     Write-Verbose "Start-Ping: Finished pinging all $($Hosts.Count) hosts"
     return $allResults

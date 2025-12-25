@@ -156,8 +156,10 @@ try {
         $networkIdentifier = "$($network.IP)/$($network.CIDR)"
         Write-Verbose "Processing network $networkIndex of $networkCount : $networkIdentifier"
 
+        # Display current network being scanned with enhanced details
         $percentComplete = if ($networkCount -gt 0) { ($networkIndex / $networkCount) * 100 } else { 0 }
-        Write-Progress -Activity "Processing Networks" -Status "Processing network $networkIndex of $networkCount : $networkIdentifier" -PercentComplete $percentComplete
+        $networkStatus = "Network $networkIndex of $networkCount : $networkIdentifier"
+        Write-Progress -Id 1 -Activity "Scanning Networks" -Status $networkStatus -PercentComplete $percentComplete
 
         # Validate network parameters before processing
         if ([string]::IsNullOrEmpty($network.IP) -or [string]::IsNullOrEmpty($network.'Subnet Mask') -or [string]::IsNullOrEmpty($network.CIDR)) {
@@ -208,6 +210,9 @@ try {
         }
         $allResults.AddRange($pingResultsProcessed)
     }
+
+    # Clear network scanning progress bar
+    Write-Progress -Id 1 -Activity "Scanning Networks" -Completed
 
     #region EXPORT RESULTS
 
