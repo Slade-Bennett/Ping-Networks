@@ -560,4 +560,201 @@ function Export-HtmlReport {
     }
 }
 
-Export-ModuleMember -Function Export-HtmlReport
+<#
+.SYNOPSIS
+    Exports network scan results to JSON format.
+.DESCRIPTION
+    Creates a well-formatted JSON file containing scan results and metadata.
+    The JSON output includes:
+    - Scan metadata (date, duration, summary statistics)
+    - Detailed results array with all scanned hosts
+    - Structured format suitable for programmatic consumption
+.PARAMETER Results
+    Array of scan result objects with Network, Host, Status, and Hostname properties.
+.PARAMETER OutputPath
+    Full path where the JSON file should be saved.
+.PARAMETER ScanMetadata
+    Optional hashtable with scan metadata (StartTime, EndTime, NetworkCount, etc.)
+.OUTPUTS
+    None. Creates a JSON file at the specified OutputPath.
+.EXAMPLE
+    $results = @(
+        [PSCustomObject]@{Network="10.0.0.0/24"; Host="10.0.0.1"; Status="Reachable"; Hostname="router.local"}
+    )
+    Export-JsonReport -Results $results -OutputPath "C:\Reports\scan.json"
+.NOTES
+    Uses ConvertTo-Json with -Depth parameter to ensure complete serialization.
+    Output is formatted with proper indentation for readability.
+#>
+function Export-JsonReport {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [array]$Results,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputPath,
+
+        [Parameter(Mandatory = $false)]
+        [hashtable]$ScanMetadata = @{}
+    )
+
+    try {
+        # Calculate summary statistics
+        $totalHosts = $Results.Count
+        $reachableHosts = ($Results | Where-Object { $_.Status -eq "Reachable" }).Count
+        $unreachableHosts = $totalHosts - $reachableHosts
+        $reachablePercent = if ($totalHosts -gt 0) { [math]::Round(($reachableHosts / $totalHosts) * 100, 2) } else { 0 }
+
+        # Get unique networks
+        $networks = ($Results | Select-Object -ExpandProperty Network -Unique)
+        $networkCount = $networks.Count
+
+        # Extract metadata with defaults
+        $scanDate = if ($ScanMetadata.ContainsKey('ScanDate')) { $ScanMetadata.ScanDate } else { Get-Date -Format "yyyy-MM-dd HH:mm:ss" }
+        $duration = if ($ScanMetadata.ContainsKey('Duration')) { $ScanMetadata.Duration } else { "N/A" }
+
+        # Create structured JSON object
+        $jsonObject = [PSCustomObject]@{
+            ScanMetadata = [PSCustomObject]@{
+                ScanDate = $scanDate
+                Duration = $duration
+                NetworksScanned = $networkCount
+                TotalHosts = $totalHosts
+                ReachableHosts = $reachableHosts
+                UnreachableHosts = $unreachableHosts
+                ReachablePercent = $reachablePercent
+            }
+            Networks = $networks
+            Results = $Results
+        }
+
+        # Convert to JSON with proper formatting
+        $jsonContent = $jsonObject | ConvertTo-Json -Depth 10
+
+        # Write to file
+        $jsonContent | Out-File -FilePath $OutputPath -Encoding UTF8 -Force
+        Write-Verbose "JSON report generated successfully: $OutputPath"
+    }
+    catch {
+        Write-Error "Failed to create JSON report at '$OutputPath': $_"
+    }
+}
+
+<#
+.SYNOPSIS
+    Exports network scan results to XML format.
+.DESCRIPTION
+    Creates a well-structured XML file containing scan results and metadata.
+    The XML output includes:
+    - Root element with scan metadata attributes
+    - Summary statistics element
+    - Results collection with individual host entries
+    - Proper XML schema for easy parsing
+.PARAMETER Results
+    Array of scan result objects with Network, Host, Status, and Hostname properties.
+.PARAMETER OutputPath
+    Full path where the XML file should be saved.
+.PARAMETER ScanMetadata
+    Optional hashtable with scan metadata (StartTime, EndTime, NetworkCount, etc.)
+.OUTPUTS
+    None. Creates an XML file at the specified OutputPath.
+.EXAMPLE
+    $results = @(
+        [PSCustomObject]@{Network="10.0.0.0/24"; Host="10.0.0.1"; Status="Reachable"; Hostname="router.local"}
+    )
+    Export-XmlReport -Results $results -OutputPath "C:\Reports\scan.xml"
+.NOTES
+    Uses XmlWriter for proper XML formatting and encoding.
+    Compatible with most XML parsers and tools.
+#>
+function Export-XmlReport {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [array]$Results,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OutputPath,
+
+        [Parameter(Mandatory = $false)]
+        [hashtable]$ScanMetadata = @{}
+    )
+
+    try {
+        # Calculate summary statistics
+        $totalHosts = $Results.Count
+        $reachableHosts = ($Results | Where-Object { $_.Status -eq "Reachable" }).Count
+        $unreachableHosts = $totalHosts - $reachableHosts
+        $reachablePercent = if ($totalHosts -gt 0) { [math]::Round(($reachableHosts / $totalHosts) * 100, 2) } else { 0 }
+
+        # Get unique networks
+        $networks = ($Results | Select-Object -ExpandProperty Network -Unique)
+        $networkCount = $networks.Count
+
+        # Extract metadata with defaults
+        $scanDate = if ($ScanMetadata.ContainsKey('ScanDate')) { $ScanMetadata.ScanDate } else { Get-Date -Format "yyyy-MM-dd HH:mm:ss" }
+        $duration = if ($ScanMetadata.ContainsKey('Duration')) { $ScanMetadata.Duration } else { "N/A" }
+
+        # Create XML writer with proper settings
+        $xmlSettings = New-Object System.Xml.XmlWriterSettings
+        $xmlSettings.Indent = $true
+        $xmlSettings.IndentChars = "  "
+        $xmlSettings.Encoding = [System.Text.Encoding]::UTF8
+
+        $xmlWriter = [System.Xml.XmlWriter]::Create($OutputPath, $xmlSettings)
+
+        # Write XML document
+        $xmlWriter.WriteStartDocument()
+
+        # Root element with metadata attributes
+        $xmlWriter.WriteStartElement("NetworkScanReport")
+        $xmlWriter.WriteAttributeString("ScanDate", $scanDate)
+        $xmlWriter.WriteAttributeString("Duration", $duration)
+
+        # Summary element
+        $xmlWriter.WriteStartElement("Summary")
+        $xmlWriter.WriteElementString("NetworksScanned", $networkCount.ToString())
+        $xmlWriter.WriteElementString("TotalHosts", $totalHosts.ToString())
+        $xmlWriter.WriteElementString("ReachableHosts", $reachableHosts.ToString())
+        $xmlWriter.WriteElementString("UnreachableHosts", $unreachableHosts.ToString())
+        $xmlWriter.WriteElementString("ReachablePercent", $reachablePercent.ToString())
+        $xmlWriter.WriteEndElement() # Summary
+
+        # Networks element
+        $xmlWriter.WriteStartElement("Networks")
+        foreach ($network in $networks) {
+            $xmlWriter.WriteElementString("Network", $network)
+        }
+        $xmlWriter.WriteEndElement() # Networks
+
+        # Results element
+        $xmlWriter.WriteStartElement("Results")
+        foreach ($result in $Results) {
+            $xmlWriter.WriteStartElement("Host")
+            $xmlWriter.WriteElementString("Network", $result.Network)
+            $xmlWriter.WriteElementString("IPAddress", $result.Host)
+            $xmlWriter.WriteElementString("Status", $result.Status)
+            $xmlWriter.WriteElementString("Hostname", $result.Hostname)
+            $xmlWriter.WriteEndElement() # Host
+        }
+        $xmlWriter.WriteEndElement() # Results
+
+        $xmlWriter.WriteEndElement() # NetworkScanReport
+        $xmlWriter.WriteEndDocument()
+        $xmlWriter.Flush()
+        $xmlWriter.Close()
+
+        Write-Verbose "XML report generated successfully: $OutputPath"
+    }
+    catch {
+        Write-Error "Failed to create XML report at '$OutputPath': $_"
+    }
+    finally {
+        if ($xmlWriter) {
+            $xmlWriter.Dispose()
+        }
+    }
+}
+
+Export-ModuleMember -Function Export-HtmlReport, Export-JsonReport, Export-XmlReport

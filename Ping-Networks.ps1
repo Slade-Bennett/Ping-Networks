@@ -29,6 +29,10 @@
     (Optional) The path to the output CSV file where the ping results will be saved.
 .PARAMETER HtmlPath
     (Optional) The path to the output HTML report file. Creates an interactive web-based report with charts and sortable tables.
+.PARAMETER JsonPath
+    (Optional) The path to the output JSON file. Exports results in JSON format for programmatic consumption.
+.PARAMETER XmlPath
+    (Optional) The path to the output XML file. Exports results in structured XML format.
 .PARAMETER MaxPings
     (Optional) The maximum number of hosts to ping per network. If not specified, all usable hosts will be pinged.
 .PARAMETER Timeout
@@ -42,6 +46,12 @@
 .EXAMPLE
     .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -HtmlPath 'C:\path\to\Report.html'
     # Generate an interactive HTML report with charts and sortable tables
+.EXAMPLE
+    .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -JsonPath 'C:\path\to\results.json'
+    # Export results in JSON format for programmatic consumption
+.EXAMPLE
+    .\Ping-Networks.ps1 -InputPath 'C:\path\to\NetworkData.xlsx' -OutputPath 'results.xlsx' -HtmlPath 'report.html' -JsonPath 'data.json' -XmlPath 'data.xml'
+    # Export to all available formats simultaneously
 #>
 [CmdletBinding(DefaultParameterSetName = 'Default')]
 param(
@@ -56,6 +66,12 @@ param(
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [string]$HtmlPath,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$JsonPath,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$XmlPath,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [int]$MaxPings,
@@ -84,6 +100,10 @@ PARAMETERS:
 -CsvPath        (Optional) The path to the output CSV file where the ping results will be saved.
 -HtmlPath       (Optional) The path to the output HTML report. Creates an interactive web report
                 with charts, sortable tables, and professional styling.
+-JsonPath       (Optional) The path to the output JSON file. Structured JSON format ideal for
+                APIs, automation, and programmatic processing.
+-XmlPath        (Optional) The path to the output XML file. Structured XML format compatible
+                with most XML parsers and integration tools.
 -MaxPings       (Optional) The maximum number of hosts to ping per network. 
                 If not specified, all usable hosts will be pinged.
 -Timeout        (Optional) The timeout in seconds for each ping. Default is 1 second.
@@ -93,6 +113,7 @@ EXAMPLE:
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputPath 'C:\Temp\PingResults.xlsx'
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -HtmlPath 'C:\Temp\Report.html'
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -JsonPath 'C:\Temp\results.json' -XmlPath 'C:\Temp\results.xml'
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -MaxPings 10 -Timeout 2 -Retries 1
 "@
     return
@@ -297,6 +318,44 @@ try {
             # Generate HTML report
             Export-HtmlReport -Results $allResults -OutputPath $HtmlPath -ScanMetadata $metadata
             Write-Host "Successfully generated HTML report: $HtmlPath" -ForegroundColor Green
+        }
+
+        if ($JsonPath) {
+            Write-Verbose "Generating JSON report: $JsonPath"
+
+            # Calculate scan duration
+            $scanEndTime = Get-Date
+            $scanDuration = $scanEndTime - $scanStartTime
+            $durationFormatted = "{0:D2}:{1:D2}:{2:D2}" -f $scanDuration.Hours, $scanDuration.Minutes, $scanDuration.Seconds
+
+            # Prepare scan metadata
+            $metadata = @{
+                ScanDate = $scanStartTime.ToString("yyyy-MM-dd HH:mm:ss")
+                Duration = $durationFormatted
+            }
+
+            # Generate JSON report
+            Export-JsonReport -Results $allResults -OutputPath $JsonPath -ScanMetadata $metadata
+            Write-Host "Successfully generated JSON report: $JsonPath" -ForegroundColor Green
+        }
+
+        if ($XmlPath) {
+            Write-Verbose "Generating XML report: $XmlPath"
+
+            # Calculate scan duration
+            $scanEndTime = Get-Date
+            $scanDuration = $scanEndTime - $scanStartTime
+            $durationFormatted = "{0:D2}:{1:D2}:{2:D2}" -f $scanDuration.Hours, $scanDuration.Minutes, $scanDuration.Seconds
+
+            # Prepare scan metadata
+            $metadata = @{
+                ScanDate = $scanStartTime.ToString("yyyy-MM-dd HH:mm:ss")
+                Duration = $durationFormatted
+            }
+
+            # Generate XML report
+            Export-XmlReport -Results $allResults -OutputPath $XmlPath -ScanMetadata $metadata
+            Write-Host "Successfully generated XML report: $XmlPath" -ForegroundColor Green
         }
     }
     else {

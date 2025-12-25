@@ -27,21 +27,21 @@ This roadmap outlines the planned development and future direction for the Ping-
 
 ## Current Focus (v1.2.0 - Foundation Enhancements)
 
-### Phase 1: Core Output & Reporting Improvements
-*   **Enhanced Progress Reporting:**
-    *   Add time estimates for large scans (e.g., "Scanning 254 hosts, ~2 minutes remaining")
-    *   Display scan rate (hosts/second)
-    *   Show current network being scanned in progress bar
-    *   Add ETA calculation based on current throughput
-*   **HTML Report Generation:**
-    *   Create interactive HTML reports with sortable tables
-    *   Add visual charts (reachable vs unreachable pie charts)
-    *   Include scan metadata (date, time, duration, networks scanned)
-    *   Professional formatting for sharing with stakeholders
-*   **Additional Output Formats:**
-    *   JSON export for programmatic consumption
-    *   XML export for integration with other tools
-    *   CSV export improvements (already supported, enhance with more details)
+### Phase 1: Core Output & Reporting Improvements ✅ COMPLETED
+*   **Enhanced Progress Reporting:** ✅
+    *   ✅ Add time estimates for large scans (e.g., "Scanning 254 hosts, ~2 minutes remaining")
+    *   ✅ Display scan rate (hosts/second)
+    *   ✅ Show current network being scanned in progress bar
+    *   ✅ Add ETA calculation based on current throughput
+*   **HTML Report Generation:** ✅
+    *   ✅ Create interactive HTML reports with sortable tables
+    *   ✅ Add visual charts (reachable vs unreachable pie charts)
+    *   ✅ Include scan metadata (date, time, duration, networks scanned)
+    *   ✅ Professional formatting for sharing with stakeholders
+*   **Additional Output Formats:** ✅
+    *   ✅ JSON export for programmatic consumption
+    *   ✅ XML export for integration with other tools
+    *   CSV export (already supported)
 
 ### Phase 2: Enhanced Input Flexibility
 *   **CIDR Input Improvements:**
