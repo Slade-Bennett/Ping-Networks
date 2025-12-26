@@ -6,6 +6,45 @@
 
 <#
 .SYNOPSIS
+    Converts a CIDR prefix length to a subnet mask.
+.DESCRIPTION
+    Internal helper function that converts a CIDR notation prefix (e.g., 24 for /24)
+    to its dotted-decimal subnet mask representation (e.g., "255.255.255.0").
+.PARAMETER CIDR
+    The CIDR prefix length (integer from 0 to 32).
+.OUTPUTS
+    [string] The subnet mask in dotted-decimal notation.
+.EXAMPLE
+    ConvertFrom-CIDR -CIDR 24
+    # Returns "255.255.255.0"
+.EXAMPLE
+    ConvertFrom-CIDR -CIDR 28
+    # Returns "255.255.255.240"
+#>
+function ConvertFrom-CIDR {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateRange(0, 32)]
+        [int]$CIDR
+    )
+
+    # Create a 32-bit integer with CIDR bits set to 1 from the left
+    # Example: /24 = 11111111.11111111.11111111.00000000
+    $mask = ([Math]::Pow(2, 32) - 1) -band ([Math]::Pow(2, 32) - [Math]::Pow(2, (32 - $CIDR)))
+
+    # Convert to byte array (network byte order - big endian)
+    $bytes = [BitConverter]::GetBytes([uint32]$mask)
+
+    # Reverse for correct byte order
+    [Array]::Reverse($bytes)
+
+    # Convert to dotted-decimal notation
+    return "$($bytes[0]).$($bytes[1]).$($bytes[2]).$($bytes[3])"
+}
+
+<#
+.SYNOPSIS
     Converts an IP address string to a byte array.
 .DESCRIPTION
     Internal helper function that parses an IP address string and returns
@@ -326,4 +365,172 @@ function Start-Ping {
 
 #endregion
 
-Export-ModuleMember -Function Get-UsableHosts, Start-Ping
+<#
+.SYNOPSIS
+    Generates all IP addresses between a start and end IP (inclusive).
+.DESCRIPTION
+    Internal helper function that expands an IP range into all individual IP addresses.
+    Used when the user specifies a range like "10.0.0.1-10.0.0.50".
+.PARAMETER StartIP
+    The first IP address in the range.
+.PARAMETER EndIP
+    The last IP address in the range.
+.OUTPUTS
+    [string[]]
+    Returns an array of all IP addresses in the range.
+.EXAMPLE
+    Get-IPRange -StartIP "192.168.1.1" -EndIP "192.168.1.5"
+    # Returns: @("192.168.1.1", "192.168.1.2", "192.168.1.3", "192.168.1.4", "192.168.1.5")
+#>
+function Get-IPRange {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$StartIP,
+
+        [Parameter(Mandatory = $true)]
+        [string]$EndIP
+    )
+
+    try {
+        # Convert IPs to 32-bit integers
+        $startBytes = ConvertTo-Bytes $StartIP
+        $endBytes = ConvertTo-Bytes $EndIP
+        $startInt = BytesToUInt32 $startBytes
+        $endInt = BytesToUInt32 $endBytes
+
+        # Validate range
+        if ($startInt -gt $endInt) {
+            Write-Error "Start IP '$StartIP' is greater than End IP '$EndIP'"
+            return $null
+        }
+
+        # Generate all IPs in the range
+        $ips = @()
+        for ($i = $startInt; $i -le $endInt; $i++) {
+            $bytes = [BitConverter]::GetBytes($i)
+            # Reverse bytes to convert from little-endian to network order
+            $ips += [System.Net.IPAddress]::new(($bytes[3], $bytes[2], $bytes[1], $bytes[0])).IPAddressToString
+        }
+
+        Write-Verbose "Generated $($ips.Count) IPs from range $StartIP-$EndIP"
+        return $ips
+    }
+    catch {
+        Write-Error "Failed to generate IP range from '$StartIP' to '$EndIP': $_"
+        return $null
+    }
+}
+
+<#
+.SYNOPSIS
+    Parses and normalizes network input from various formats.
+.DESCRIPTION
+    This function accepts network definitions in multiple formats and normalizes them
+    to a standard format with IP, SubnetMask, and CIDR properties.
+
+    SUPPORTED INPUT FORMATS:
+    1. CIDR Notation: "10.0.0.0/24" - Auto-calculates subnet mask
+    2. IP Range: "10.0.0.1-10.0.0.50" - Scans specific range
+    3. Traditional: Object with IP, 'Subnet Mask', and CIDR properties
+
+.PARAMETER NetworkInput
+    The network specification in any supported format (string or object).
+.OUTPUTS
+    [PSCustomObject]
+    Returns a normalized object with properties: IP, SubnetMask, CIDR, Format, Range
+.EXAMPLE
+    Parse-NetworkInput -NetworkInput "10.0.0.0/24"
+    # Returns: @{ IP = "10.0.0.0"; SubnetMask = "255.255.255.0"; CIDR = 24; Format = "CIDR" }
+.EXAMPLE
+    Parse-NetworkInput -NetworkInput "192.168.1.1-192.168.1.50"
+    # Returns: @{ IP = "192.168.1.0"; SubnetMask = "255.255.255.0"; CIDR = 24; Format = "Range"; Range = @("192.168.1.1", "192.168.1.50") }
+.EXAMPLE
+    $obj = [PSCustomObject]@{ IP = "10.0.0.0"; 'Subnet Mask' = "255.255.255.0"; CIDR = "24" }
+    Parse-NetworkInput -NetworkInput $obj
+    # Returns normalized object
+#>
+function Parse-NetworkInput {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        $NetworkInput
+    )
+
+    try {
+        # Case 1: String input - could be CIDR notation or IP range
+        if ($NetworkInput -is [string]) {
+            # CIDR Notation: "10.0.0.0/24"
+            if ($NetworkInput -match '^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/(\d{1,2})$') {
+                $ip = $matches[1]
+                $cidr = [int]$matches[2]
+                $subnetMask = ConvertFrom-CIDR -CIDR $cidr
+
+                return [PSCustomObject]@{
+                    IP = $ip
+                    SubnetMask = $subnetMask
+                    CIDR = $cidr
+                    Format = "CIDR"
+                    Range = $null
+                }
+            }
+            # IP Range: "10.0.0.1-10.0.0.50"
+            elseif ($NetworkInput -match '^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})-(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$') {
+                $startIP = $matches[1]
+                $endIP = $matches[2]
+
+                # For ranges, we don't use subnet calculation - we'll handle this specially
+                return [PSCustomObject]@{
+                    IP = $startIP
+                    SubnetMask = $null
+                    CIDR = $null
+                    Format = "Range"
+                    Range = @($startIP, $endIP)
+                }
+            }
+            else {
+                Write-Error "Invalid network format: '$NetworkInput'. Expected CIDR (e.g., '10.0.0.0/24') or Range (e.g., '10.0.0.1-10.0.0.50')"
+                return $null
+            }
+        }
+        # Case 2: Object input - traditional format with IP, Subnet Mask, CIDR
+        else {
+            # Check if we have a Network property (new simplified format)
+            if ($NetworkInput.PSObject.Properties['Network'] -and $NetworkInput.Network) {
+                # Parse the Network property as a string (CIDR or Range)
+                return Parse-NetworkInput -NetworkInput $NetworkInput.Network
+            }
+            # Traditional format
+            elseif ($NetworkInput.IP -and ($NetworkInput.'Subnet Mask' -or $NetworkInput.CIDR)) {
+                # If CIDR is provided but no Subnet Mask, calculate it
+                if ($NetworkInput.CIDR -and -not $NetworkInput.'Subnet Mask') {
+                    $subnetMask = ConvertFrom-CIDR -CIDR ([int]$NetworkInput.CIDR)
+                } else {
+                    $subnetMask = $NetworkInput.'Subnet Mask'
+                }
+
+                # If Subnet Mask is provided but no CIDR, we'll still work with it
+                # (CIDR is optional for display purposes)
+                $cidr = if ($NetworkInput.CIDR) { [int]$NetworkInput.CIDR } else { $null }
+
+                return [PSCustomObject]@{
+                    IP = $NetworkInput.IP
+                    SubnetMask = $subnetMask
+                    CIDR = $cidr
+                    Format = "Traditional"
+                    Range = $null
+                }
+            }
+            else {
+                Write-Error "Invalid network object. Must have either: (1) 'Network' property with CIDR notation, (2) 'IP' and 'Subnet Mask'/'CIDR' properties, or (3) CIDR string format"
+                return $null
+            }
+        }
+    }
+    catch {
+        Write-Error "Failed to parse network input: $_"
+        return $null
+    }
+}
+
+Export-ModuleMember -Function Get-UsableHosts, Start-Ping, Parse-NetworkInput, Get-IPRange

@@ -213,23 +213,41 @@ try {
         throw "No networks found in input file. Please ensure the Excel file has data rows."
     }
 
-    foreach ($network in $networks) {
+    foreach ($networkInput in $networks) {
         $networkIndex++
-        $networkIdentifier = "$($network.IP)/$($network.CIDR)"
-        Write-Verbose "Processing network $networkIndex of $networkCount : $networkIdentifier"
+
+        # Parse and normalize network input (supports CIDR, ranges, traditional format)
+        $network = Parse-NetworkInput -NetworkInput $networkInput
+        if (-not $network) {
+            Write-Warning "Skipping network entry $networkIndex due to invalid format."
+            continue
+        }
+
+        # Create network identifier for display
+        $networkIdentifier = if ($network.Format -eq "Range") {
+            "$($network.Range[0])-$($network.Range[1])"
+        } elseif ($network.CIDR) {
+            "$($network.IP)/$($network.CIDR)"
+        } else {
+            "$($network.IP)"
+        }
+
+        Write-Verbose "Processing network $networkIndex of $networkCount : $networkIdentifier (Format: $($network.Format))"
 
         # Display current network being scanned with enhanced details
         $percentComplete = if ($networkCount -gt 0) { ($networkIndex / $networkCount) * 100 } else { 0 }
         $networkStatus = "Network $networkIndex of $networkCount : $networkIdentifier"
         Write-Progress -Id 1 -Activity "Scanning Networks" -Status $networkStatus -PercentComplete $percentComplete
 
-        # Validate network parameters before processing
-        if ([string]::IsNullOrEmpty($network.IP) -or [string]::IsNullOrEmpty($network.'Subnet Mask') -or [string]::IsNullOrEmpty($network.CIDR)) {
-            Write-Warning "Skipping network entry due to missing or empty IP, SubnetMask, or CIDR for network '$($network.IP)/$($network.CIDR)'."
-            continue
+        # Get list of hosts to ping based on format
+        $usableHosts = if ($network.Format -eq "Range") {
+            # IP Range format: generate all IPs between start and end
+            Get-IPRange -StartIP $network.Range[0] -EndIP $network.Range[1]
+        } else {
+            # CIDR or Traditional format: calculate from subnet
+            Get-UsableHosts -IP $network.IP -SubnetMask $network.SubnetMask
         }
 
-        $usableHosts = Get-UsableHosts -IP $network.IP -SubnetMask $network.'Subnet Mask'
         if (-not $usableHosts) {
             Write-Warning "No usable hosts found for network '$networkIdentifier'. Skipping ping."
             continue
