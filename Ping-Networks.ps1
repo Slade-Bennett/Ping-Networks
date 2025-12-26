@@ -22,7 +22,11 @@
     - Color-coded status cells (green=reachable, red=unreachable)
     - Hostname resolution for network documentation
 .PARAMETER InputPath
-    The path to the input Excel file containing the network data. The file should have three columns: 'IP', 'SubnetMask', and 'CIDR'.
+    The path to the input file containing the network data.
+    Supported formats:
+    - Excel (.xlsx): Single "Network" column with CIDR/Range notation, or traditional IP/Subnet Mask/CIDR columns
+    - CSV (.csv): Same formats as Excel (with header row)
+    - Text (.txt): One network per line in CIDR or Range notation (e.g., "10.0.0.0/24" or "192.168.1.1-192.168.1.50")
 .PARAMETER OutputDirectory
     (Optional) The directory where output files will be saved. Defaults to the user's Documents folder.
     All output files will use timestamped filenames (e.g., PingResults_20251224_235900.xlsx)
@@ -44,19 +48,22 @@
     (Optional) The number of retries for each ping. The default is 0.
 .EXAMPLE
     .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
-    # Basic usage - generates Excel file in Documents folder by default
+    # Basic usage with Excel file - generates Excel output in Documents folder by default
+.EXAMPLE
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html
+    # Use CSV file input and generate HTML report
+.EXAMPLE
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.txt' -Excel -Json
+    # Use text file input (one network per line) and generate Excel and JSON reports
 .EXAMPLE
     .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Excel -Html -Json
-    # Generate Excel, HTML, and JSON reports in Documents folder
+    # Generate multiple output formats simultaneously
 .EXAMPLE
     .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html
     # Generate Excel and HTML reports in custom directory
 .EXAMPLE
-    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html -Json -Xml -Csv
-    # Generate all output formats in custom directory
-.EXAMPLE
-    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -MaxPings 20
-    # Generate HTML report with maximum 20 hosts per network
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html -MaxPings 20
+    # Generate HTML report with maximum 20 hosts per network from CSV input
 #>
 [CmdletBinding(DefaultParameterSetName = 'Default')]
 param(
@@ -101,8 +108,11 @@ The results are then exported to a new Excel file, with a separate
 worksheet for each network and a summary worksheet.
 
 PARAMETERS:
--InputPath         (Required) The path to the input Excel file containing the network data.
-                   The file should have three columns: 'IP', 'SubnetMask', and 'CIDR'.
+-InputPath         (Required) The path to the input file containing network data.
+                   Supported formats:
+                   • Excel (.xlsx): "Network" column with CIDR/Range, or IP/Subnet Mask/CIDR columns
+                   • CSV (.csv): Same as Excel with header row
+                   • Text (.txt): One network per line (CIDR or Range format)
 -OutputDirectory   (Optional) The directory where output files will be saved.
                    Defaults to the user's Documents folder.
                    All files use timestamped filenames (e.g., PingResults_20251224_235900.xlsx)
@@ -118,16 +128,19 @@ PARAMETERS:
 
 EXAMPLES:
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
-# Basic usage - generates Excel in Documents folder by default
+# Basic usage with Excel file - generates Excel in Documents folder by default
 
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Excel -Html -Json
-# Generate multiple formats in Documents folder
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html
+# Use CSV file input and generate HTML report
+
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.txt' -Excel -Json
+# Use text file input (one network per line) and generate Excel/JSON reports
 
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html
 # Generate Excel and HTML in custom directory
 
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -MaxPings 20
-# Generate HTML report with max 20 hosts per network
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html -MaxPings 20
+# Generate HTML report with max 20 hosts per network from CSV
 "@
     return
 }
@@ -186,22 +199,54 @@ $excelApp = $null
 $inputWorkbook = $null
 $outputWorkbook = $null
 try {
-    $excelApp = New-ExcelSession
-    if (-not $excelApp) {
-        throw "Failed to start Excel."
+    # Detect input file type and read networks accordingly
+    $inputExtension = [System.IO.Path]::GetExtension($InputPath).ToLower()
+
+    switch ($inputExtension) {
+        '.xlsx' {
+            # Excel file input
+            $excelApp = New-ExcelSession
+            if (-not $excelApp) {
+                throw "Failed to start Excel."
+            }
+
+            $inputWorkbook = Get-ExcelWorkbook -Path (Resolve-Path -Path $InputPath) -Excel $excelApp
+            if (-not $inputWorkbook) {
+                throw "Failed to open input workbook '$InputPath'."
+            }
+
+            $networks = Read-ExcelSheet -Workbook $inputWorkbook
+            if (-not $networks) {
+                throw "Failed to read networks from '$InputPath'."
+            }
+        }
+        '.csv' {
+            # CSV file input
+            Write-Verbose "Reading networks from CSV file: $InputPath"
+            $networks = Import-Csv -Path $InputPath
+            if (-not $networks) {
+                throw "Failed to read networks from CSV file '$InputPath'."
+            }
+        }
+        '.txt' {
+            # Text file input (one network per line)
+            Write-Verbose "Reading networks from text file: $InputPath"
+            $networkLines = Get-Content -Path $InputPath | Where-Object { $_ -match '\S' }  # Filter out empty lines
+            if (-not $networkLines) {
+                throw "Failed to read networks from text file '$InputPath'."
+            }
+
+            # Convert text lines to objects with Network property
+            $networks = $networkLines | ForEach-Object {
+                [PSCustomObject]@{ Network = $_.Trim() }
+            }
+        }
+        default {
+            throw "Unsupported input file format: '$inputExtension'. Supported formats: .xlsx, .csv, .txt"
+        }
     }
 
-    $inputWorkbook = Get-ExcelWorkbook -Path (Resolve-Path -Path $InputPath) -Excel $excelApp
-    if (-not $inputWorkbook) {
-        throw "Failed to open input workbook '$InputPath'."
-    }
-    
-    $networks = Read-ExcelSheet -Workbook $inputWorkbook
-    if (-not $networks) {
-        throw "Failed to read networks from '$InputPath'."
-    }
-
-    Write-Verbose "Read $($networks.Count) network(s) from Excel file"
+    Write-Verbose "Read $($networks.Count) network(s) from input file ($inputExtension)"
 
     $allResults = [System.Collections.Generic.List[pscustomobject]]::new()
     $summaryData = [System.Collections.Generic.List[pscustomobject]]::new()

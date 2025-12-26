@@ -44,14 +44,14 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   CSV export (already supported)
 
 ### Phase 2: Enhanced Input Flexibility
-*   **CIDR Input Improvements:**
-    *   Accept CIDR notation directly in Excel (e.g., "10.0.0.0/24" without separate subnet mask column)
-    *   Support for IP ranges (e.g., "10.0.0.1-10.0.0.50")
-    *   Auto-calculate subnet mask from CIDR notation
-*   **Multiple Input Sources:**
-    *   CSV file input support (alternative to Excel)
-    *   Direct PowerShell arrays/objects as input
-    *   Read from text files (one network per line)
+*   **CIDR Input Improvements:** ✅ COMPLETED
+    *   ✅ Accept CIDR notation directly in Excel (e.g., "10.0.0.0/24" without separate subnet mask column)
+    *   ✅ Support for IP ranges (e.g., "10.0.0.1-10.0.0.50")
+    *   ✅ Auto-calculate subnet mask from CIDR notation
+*   **Multiple Input Sources:** ✅ COMPLETED
+    *   ✅ CSV file input support (alternative to Excel)
+    *   ✅ Read from text files (one network per line)
+    *   Direct PowerShell arrays/objects as input (deferred - use case unclear)
 *   **Advanced Filtering Options:**
     *   Exclude specific IPs or ranges from scans
     *   Scan only odd/even IPs (useful for some network designs)

@@ -5,6 +5,11 @@ Ping-Networks is a PowerShell module that pings all hosts in specified networks 
 ## Features
 
 *   **Complete Network Scanning:** Calculates and pings ALL usable host addresses in each subnet (not just the first host).
+*   **Flexible Input Formats:**
+    *   **CIDR Notation:** `10.0.0.0/24` (auto-calculates subnet mask)
+    *   **IP Ranges:** `192.168.1.1-192.168.1.20` (scans specific range)
+    *   **Multiple File Types:** Excel (.xlsx), CSV (.csv), Text (.txt)
+    *   **Traditional Format:** Backward compatible with IP/Subnet Mask/CIDR columns
 *   **Universal CIDR Support:** Works with any standard CIDR notation (/8 through /30) - /24, /28, /16, etc.
 *   **Accurate Subnet Calculations:** Uses bitwise operations for precise network address, broadcast address, and host range calculations.
 *   **Parallel Execution:** Pings hosts concurrently using PowerShell background jobs for maximum speed (configurable batch size).
@@ -21,7 +26,7 @@ Ping-Networks is a PowerShell module that pings all hosts in specified networks 
 ## Requirements
 
 *   PowerShell 5.0 or later.
-*   Microsoft Excel installed.
+*   Microsoft Excel installed (only required for .xlsx input/output files).
 
 ## Usage
 
@@ -31,9 +36,31 @@ The main script `Ping-Networks.ps1` is located in the root directory. You can ru
 .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Excel -Html
 ```
 
+### Input File Formats
+
+The script supports multiple input file formats for maximum flexibility:
+
+**Excel (.xlsx)**
+- Single "Network" column with CIDR notation (`10.0.0.0/24`) or IP ranges (`192.168.1.1-192.168.1.20`)
+- Traditional format with separate `IP`, `Subnet Mask`, and `CIDR` columns (backward compatible)
+
+**CSV (.csv)**
+- Same formats as Excel with header row
+- Lightweight alternative when Excel is not installed
+
+**Text (.txt)**
+- One network per line in CIDR or Range format
+- Simplest format for quick scans
+- Example:
+  ```
+  10.0.0.0/24
+  192.168.1.1-192.168.1.20
+  172.16.0.0/28
+  ```
+
 ### Parameters
 
-*   `InputPath`: (Required) The path to the input Excel file containing the network data. The file should have three columns: 'IP', 'SubnetMask', and 'CIDR'.
+*   `InputPath`: (Required) The path to the input file (.xlsx, .csv, or .txt) containing the network data.
 *   `OutputDirectory`: (Optional) The directory where all output files will be saved. Defaults to the user's Documents folder. All files use timestamped filenames (e.g., PingResults_20251224_235900.xlsx).
 *   `Excel`: (Switch) Generate Excel output with color-coded results and summary statistics.
 *   `Html`: (Switch) Generate interactive HTML report with charts and sortable tables.
@@ -55,6 +82,22 @@ The main script `Ping-Networks.ps1` is located in the root directory. You can ru
 ```
 
 This will ping all the networks in the `NetworkData.xlsx` file and create a new Excel file in your Documents folder with the results (default behavior).
+
+### Use CSV Input
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html
+```
+
+Read networks from CSV file and generate HTML report. CSV format is useful when Excel is not installed.
+
+### Use Text File Input
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.txt' -Excel -Json
+```
+
+Read networks from text file (one network per line) and generate Excel and JSON reports. Simplest format for quick scans.
 
 ### Generate Multiple Formats
 
@@ -119,6 +162,16 @@ Ping-Networks/
 ## Recent Improvements
 
 ### Version 1.2.0 (Latest)
+*   **Multiple Input Sources:**
+    *   CSV file support (.csv) - lightweight alternative to Excel
+    *   Text file support (.txt) - one network per line for quick scans
+    *   Excel remains fully supported (.xlsx)
+    *   Excel no longer required for CSV/TXT workflows
+*   **Flexible Network Notation:**
+    *   CIDR notation support (`10.0.0.0/24`)
+    *   IP range support (`192.168.1.1-192.168.1.20`)
+    *   Auto-calculation of subnet masks from CIDR
+    *   Backward compatible with traditional IP/Subnet Mask/CIDR format
 *   **Simplified Parameter System:**
     *   Single `-OutputDirectory` parameter for all output files
     *   Format switches (`-Excel`, `-Html`, `-Json`, `-Xml`, `-Csv`) for output selection
