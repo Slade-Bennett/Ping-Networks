@@ -16,6 +16,7 @@ $testSuites = @(
     @{ Name = "Core Functions"; Script = "Test-CoreFunctions.ps1" }
     @{ Name = "Input Formats"; Script = "Test-InputFormats.ps1" }
     @{ Name = "Output Formats"; Script = "Test-OutputFormats.ps1" }
+    @{ Name = "History Features"; Script = "Test-HistoryFeatures.ps1" }
     @{ Name = "End-to-End"; Script = "Test-EndToEnd.ps1" }
 )
 

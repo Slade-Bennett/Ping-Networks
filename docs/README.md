@@ -74,6 +74,8 @@ The script supports multiple input file formats for maximum flexibility:
 *   `ExcludeIPs`: (Optional) Array of IP addresses or ranges to exclude from scanning. Example: `-ExcludeIPs "192.168.1.1","192.168.1.100-192.168.1.110"`
 *   `OddOnly`: (Switch) Scan only odd IP addresses (.1, .3, .5, etc.). Useful for specific network designs.
 *   `EvenOnly`: (Switch) Scan only even IP addresses (.2, .4, .6, etc.). Useful for specific network designs.
+*   `HistoryPath`: (Optional) Directory path where scan history will be saved as timestamped JSON files. If not specified, no history is saved. Example: `-HistoryPath "C:\ScanHistory"`
+*   `CompareBaseline`: (Optional) Path to a previous scan result file (JSON) to compare against current scan. Generates a change detection report showing new devices, offline devices, and status changes. Example: `-CompareBaseline "C:\ScanHistory\ScanHistory_20251225_120000.json"`
 *   `MaxPings`: (Optional) The maximum number of hosts to ping per network. If not specified, all usable hosts will be pinged.
 *   `Timeout`: (Optional) The timeout in seconds for each ping. Default is 1 second.
 *   `Retries`: (Optional) The number of retries for each ping. Default is 0.
@@ -162,6 +164,30 @@ Exclude an entire range of IPs from scanning (useful for reserved DHCP ranges).
 
 Scan only odd IP addresses. Useful for dual-stack networks or specific network designs.
 
+### Save Scan History
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -HistoryPath 'C:\ScanHistory' -Html
+```
+
+Scan networks and save the results to a history directory. Each scan is saved as a timestamped JSON file for future comparison and trend analysis.
+
+### Compare Against Baseline
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -CompareBaseline 'C:\ScanHistory\ScanHistory_20251225_120000.json' -Html
+```
+
+Scan networks and compare results against a previous scan. Generates a change detection report showing new devices, offline devices, and recovered devices.
+
+### History with Baseline Comparison
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -HistoryPath 'C:\ScanHistory' -CompareBaseline 'C:\ScanHistory\ScanHistory_20251225_120000.json' -Html -Json
+```
+
+Scan networks, save the current results to history, and compare against a previous baseline. Generates both scan results and a change detection report in HTML and JSON formats.
+
 ## Architecture
 
 The project is organized into modular components for maintainability:
@@ -192,7 +218,28 @@ Ping-Networks/
 
 ## Recent Improvements
 
-### Version 1.2.0 (Latest)
+### Version 1.4.0 (Latest)
+*   **Scan History & Baseline Tracking:**
+    *   Save scan results to history directory with `-HistoryPath` parameter
+    *   Each scan saved as timestamped JSON file with full metadata
+    *   Automatic retention of historical scan data for trend analysis
+*   **Baseline Comparison:**
+    *   Compare current scan against previous baseline with `-CompareBaseline` parameter
+    *   Automatic detection of new devices appearing on network
+    *   Identification of devices that went offline since baseline
+    *   Detection of recovered devices (unreachable to reachable)
+    *   Change detection report with summary statistics
+*   **Change Detection Reports:**
+    *   JSON change reports with detailed comparison metadata
+    *   Console summary showing new/offline/recovered device counts
+    *   Color-coded change summary (yellow=new, red=offline, green=recovered)
+    *   Automatic export to both output directory and history directory
+*   **Historical Data Management:**
+    *   Structured JSON format for long-term data storage
+    *   Scan metadata includes date, duration, input file, and statistics
+    *   Compatible with future trend analysis and reporting features
+
+### Version 1.2.0
 *   **Advanced Filtering Options:**
     *   Exclude specific IPs or ranges from scans (`-ExcludeIPs`)
     *   Scan only odd IPs (`-OddOnly`) or even IPs (`-EvenOnly`)

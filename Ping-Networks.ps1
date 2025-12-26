@@ -47,6 +47,12 @@
     (Optional) Scan only odd IP addresses (e.g., .1, .3, .5). Useful for certain network designs.
 .PARAMETER EvenOnly
     (Optional) Scan only even IP addresses (e.g., .2, .4, .6). Useful for certain network designs.
+.PARAMETER HistoryPath
+    (Optional) Directory path where scan history will be saved as timestamped JSON files.
+    If not specified, no history is saved. Example: "C:\ScanHistory"
+.PARAMETER CompareBaseline
+    (Optional) Path to a previous scan result file (JSON) to compare against current scan.
+    Generates a change detection report showing new devices, offline devices, and status changes.
 .PARAMETER MaxPings
     (Optional) The maximum number of hosts to ping per network. If not specified, all usable hosts will be pinged.
 .PARAMETER Timeout
@@ -112,6 +118,12 @@ param(
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [switch]$EvenOnly,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$HistoryPath,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$CompareBaseline,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [int]$MaxPings,
@@ -215,6 +227,25 @@ $HtmlPath = if ($Html) { Join-Path -Path $OutputDirectory -ChildPath "$baseFilen
 $JsonPath = if ($Json) { Join-Path -Path $OutputDirectory -ChildPath "$baseFilename.json" } else { $null }
 $XmlPath = if ($Xml) { Join-Path -Path $OutputDirectory -ChildPath "$baseFilename.xml" } else { $null }
 $CsvPath = if ($Csv) { Join-Path -Path $OutputDirectory -ChildPath "$baseFilename.csv" } else { $null }
+
+# Load baseline data if comparison requested
+$baselineData = $null
+if ($CompareBaseline) {
+    try {
+        if (-not (Test-Path -Path $CompareBaseline)) {
+            Write-Warning "Baseline file not found: $CompareBaseline. Comparison will be skipped."
+        } else {
+            Write-Verbose "Loading baseline data from: $CompareBaseline"
+            $baselineJson = Get-Content -Path $CompareBaseline -Raw -Encoding UTF8
+            $baselineData = $baselineJson | ConvertFrom-Json
+            Write-Verbose "Baseline loaded: $($baselineData.Results.Count) hosts from scan on $($baselineData.ScanMetadata.ScanDate)"
+        }
+    }
+    catch {
+        Write-Warning "Failed to load baseline file: $($_.Exception.Message). Comparison will be skipped."
+        $baselineData = $null
+    }
+}
 
 #endregion
 
@@ -402,6 +433,103 @@ try {
     # Clear network scanning progress bar
     Write-Progress -Id 1 -Activity "Scanning Networks" -Completed
 
+    #region BASELINE COMPARISON
+
+    $changeReport = $null
+    if ($baselineData) {
+        Write-Verbose "Performing baseline comparison..."
+
+        # Create lookup dictionaries for fast comparison
+        $baselineHosts = @{}
+        foreach ($result in $baselineData.Results) {
+            $key = "$($result.Network)|$($result.Host)"
+            $baselineHosts[$key] = $result
+        }
+
+        $currentHosts = @{}
+        foreach ($result in $allResults) {
+            $key = "$($result.Network)|$($result.Host)"
+            $currentHosts[$key] = $result
+        }
+
+        # Identify changes
+        $newDevices = [System.Collections.Generic.List[pscustomobject]]::new()
+        $offlineDevices = [System.Collections.Generic.List[pscustomobject]]::new()
+        $recoveredDevices = [System.Collections.Generic.List[pscustomobject]]::new()
+        $statusChanged = [System.Collections.Generic.List[pscustomobject]]::new()
+
+        # Find new devices (in current scan but not in baseline)
+        foreach ($key in $currentHosts.Keys) {
+            if (-not $baselineHosts.ContainsKey($key)) {
+                $newDevices.Add($currentHosts[$key])
+            }
+        }
+
+        # Find offline/recovered/changed devices
+        foreach ($key in $baselineHosts.Keys) {
+            $baselineHost = $baselineHosts[$key]
+
+            if (-not $currentHosts.ContainsKey($key)) {
+                # Device was in baseline but not scanned this time (network may have been excluded)
+                continue
+            }
+
+            $currentHost = $currentHosts[$key]
+
+            # Check for status changes
+            if ($baselineHost.Status -ne $currentHost.Status) {
+                if ($baselineHost.Status -eq "Reachable" -and $currentHost.Status -eq "Unreachable") {
+                    # Device went offline
+                    $offlineDevices.Add([PSCustomObject]@{
+                        Network = $currentHost.Network
+                        Host = $currentHost.Host
+                        PreviousStatus = $baselineHost.Status
+                        CurrentStatus = $currentHost.Status
+                        PreviousHostname = $baselineHost.Hostname
+                    })
+                }
+                elseif ($baselineHost.Status -eq "Unreachable" -and $currentHost.Status -eq "Reachable") {
+                    # Device came back online
+                    $recoveredDevices.Add([PSCustomObject]@{
+                        Network = $currentHost.Network
+                        Host = $currentHost.Host
+                        PreviousStatus = $baselineHost.Status
+                        CurrentStatus = $currentHost.Status
+                        CurrentHostname = $currentHost.Hostname
+                    })
+                }
+            }
+        }
+
+        # Create change report
+        $changeReport = [PSCustomObject]@{
+            ComparisonMetadata = @{
+                BaselineScanDate = $baselineData.ScanMetadata.ScanDate
+                CurrentScanDate = $scanStartTime.ToString("yyyy-MM-dd HH:mm:ss")
+                BaselineTotalHosts = $baselineData.Results.Count
+                CurrentTotalHosts = $allResults.Count
+            }
+            Summary = @{
+                NewDevices = $newDevices.Count
+                OfflineDevices = $offlineDevices.Count
+                RecoveredDevices = $recoveredDevices.Count
+            }
+            NewDevices = $newDevices
+            OfflineDevices = $offlineDevices
+            RecoveredDevices = $recoveredDevices
+        }
+
+        # Display change summary
+        Write-Host "`n=== Baseline Comparison Summary ===" -ForegroundColor Cyan
+        Write-Host "Baseline scan: $($baselineData.ScanMetadata.ScanDate)" -ForegroundColor Gray
+        Write-Host "New devices detected: $($newDevices.Count)" -ForegroundColor $(if ($newDevices.Count -gt 0) { "Yellow" } else { "Gray" })
+        Write-Host "Devices now offline: $($offlineDevices.Count)" -ForegroundColor $(if ($offlineDevices.Count -gt 0) { "Red" } else { "Gray" })
+        Write-Host "Devices recovered: $($recoveredDevices.Count)" -ForegroundColor $(if ($recoveredDevices.Count -gt 0) { "Green" } else { "Gray" })
+        Write-Host "==================================`n" -ForegroundColor Cyan
+    }
+
+    #endregion
+
     #region EXPORT RESULTS
 
     if ($allResults.Count -gt 0) {
@@ -516,6 +644,71 @@ try {
             # Generate XML report
             Export-XmlReport -Results $allResults -OutputPath $XmlPath -ScanMetadata $metadata
             Write-Host "Successfully generated XML report: $XmlPath" -ForegroundColor Green
+        }
+
+        # Save scan history if HistoryPath is specified
+        if ($HistoryPath) {
+            try {
+                Write-Verbose "Saving scan history to: $HistoryPath"
+
+                # Ensure history directory exists
+                if (-not (Test-Path -Path $HistoryPath)) {
+                    New-Item -Path $HistoryPath -ItemType Directory -Force | Out-Null
+                    Write-Verbose "Created history directory: $HistoryPath"
+                }
+
+                # Calculate scan duration
+                $scanEndTime = Get-Date
+                $scanDuration = $scanEndTime - $scanStartTime
+                $durationFormatted = "{0:D2}:{1:D2}:{2:D2}" -f $scanDuration.Hours, $scanDuration.Minutes, $scanDuration.Seconds
+
+                # Create history data structure
+                $historyData = @{
+                    ScanMetadata = @{
+                        ScanDate = $scanStartTime.ToString("yyyy-MM-dd HH:mm:ss")
+                        Duration = $durationFormatted
+                        InputFile = $InputPath
+                        TotalNetworks = $networkCount
+                        TotalHostsScanned = $allResults.Count
+                        ReachableHosts = ($allResults | Where-Object { $_.Status -eq "Reachable" }).Count
+                        UnreachableHosts = ($allResults | Where-Object { $_.Status -eq "Unreachable" }).Count
+                    }
+                    Summary = $summaryData
+                    Results = $allResults
+                }
+
+                # Save to timestamped JSON file in history directory
+                $historyFilename = "ScanHistory_$timestamp.json"
+                $historyFilePath = Join-Path -Path $HistoryPath -ChildPath $historyFilename
+                $historyData | ConvertTo-Json -Depth 10 | Set-Content -Path $historyFilePath -Encoding UTF8
+                Write-Host "Successfully saved scan history to: $historyFilePath" -ForegroundColor Green
+            }
+            catch {
+                Write-Warning "Failed to save scan history: $($_.Exception.Message)"
+            }
+        }
+
+        # Export change report if baseline comparison was performed
+        if ($changeReport) {
+            try {
+                # Generate change report filename
+                $changeReportFilename = "ChangeReport_$timestamp.json"
+                $changeReportPath = Join-Path -Path $OutputDirectory -ChildPath $changeReportFilename
+
+                Write-Verbose "Exporting change report to: $changeReportPath"
+                $changeReport | ConvertTo-Json -Depth 10 | Set-Content -Path $changeReportPath -Encoding UTF8
+                Write-Host "Successfully exported change report to: $changeReportPath" -ForegroundColor Green
+
+                # Also save to history directory if HistoryPath is specified
+                if ($HistoryPath) {
+                    $historyChangeReportPath = Join-Path -Path $HistoryPath -ChildPath $changeReportFilename
+                    $changeReport | ConvertTo-Json -Depth 10 | Set-Content -Path $historyChangeReportPath -Encoding UTF8
+                    Write-Verbose "Change report also saved to history: $historyChangeReportPath"
+                }
+            }
+            catch {
+                Write-Warning "Failed to export change report: $($_.Exception.Message)"
+            }
         }
     }
     else {

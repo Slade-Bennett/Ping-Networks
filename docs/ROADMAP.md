@@ -57,12 +57,29 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ Scan only odd/even IPs (-OddOnly, -EvenOnly switches)
     *   ✅ Filtering works with all input formats and network types
 
-## Current Focus (v1.3.0+)
+## Completed Phases (v1.4.0)
 
-**Next Priority:** Phase 5 - Scan History & Baseline Tracking
-**Version:** v1.4.0 - Data Management & Analysis
+### Phase 5: Scan History & Baseline Tracking ✅ COMPLETED
+*   **Historical Data Storage:** ✅
+    *   ✅ Store scan results in timestamped JSON files
+    *   ✅ Save to configurable history directory (-HistoryPath parameter)
+    *   ✅ Structured format with scan metadata and detailed results
+*   **Baseline Comparison:** ✅
+    *   ✅ Compare current scan vs previous baseline (-CompareBaseline parameter)
+    *   ✅ Detect network changes (new devices, devices that went offline)
+    *   ✅ Identify recovered devices (unreachable to reachable)
+    *   ✅ Generate change reports with summary statistics
+*   **Change Detection Reports:** ✅
+    *   ✅ JSON change reports with comparison metadata
+    *   ✅ Console summary with color-coded statistics
+    *   ✅ Export to both output directory and history directory
 
-The focus is now on data management features like historical tracking, baseline comparisons, and trend analysis. Port scanning and advanced discovery features (Phases 3-4) are deferred as they are not immediate priorities.
+## Current Focus (v1.5.0+)
+
+**Next Priority:** Phase 6 - Advanced Ping Customization OR Phase 7 - Performance & Scalability
+**Version:** v1.5.0+
+
+Phase 5 (Scan History & Baseline Tracking) is now complete. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
 
 ---
 
@@ -97,19 +114,19 @@ The focus is now on data management features like historical tracking, baseline 
     *   **Smart Scan** - adaptive scanning based on response patterns
     *   **Stealth Scan** - slower, less aggressive pinging to avoid detection
 
-## v1.4.0 - Data Management & Analysis
+## v1.4.0 - Data Management & Analysis ✅ COMPLETED
 
-### Phase 5: Scan History & Baseline Tracking
-*   **Historical Data Storage:**
-    *   Store scan results in SQLite database or timestamped files
-    *   Maintain scan history for trend analysis
-    *   Configurable retention policies
-*   **Baseline Comparison:**
-    *   Compare current scan vs previous baseline
-    *   Detect network changes (new devices, devices that went offline)
-    *   Generate change reports highlighting differences
-    *   Alert on significant changes
-*   **Trend Analysis:**
+### Phase 5: Scan History & Baseline Tracking ✅ COMPLETED
+*   **Historical Data Storage:** ✅
+    *   ✅ Store scan results in timestamped JSON files (SQLite deferred)
+    *   ✅ Maintain scan history for trend analysis
+    *   Configurable retention policies (deferred to future version)
+*   **Baseline Comparison:** ✅
+    *   ✅ Compare current scan vs previous baseline
+    *   ✅ Detect network changes (new devices, devices that went offline)
+    *   ✅ Generate change reports highlighting differences
+    *   Alert on significant changes (deferred to Phase 8 - Scheduled Scanning)
+*   **Trend Analysis:** (Deferred to future version)
     *   Track host availability over time
     *   Identify patterns in network changes
     *   Generate availability statistics
