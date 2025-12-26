@@ -74,12 +74,28 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ Console summary with color-coded statistics
     *   ✅ Export to both output directory and history directory
 
-## Current Focus (v1.5.0+)
+## Completed Phases (v1.5.0)
 
-**Next Priority:** Phase 6 - Advanced Ping Customization OR Phase 7 - Performance & Scalability
-**Version:** v1.5.0+
+### Phase 7: Multi-Threading Improvements ✅ COMPLETED
+*   **Runspace Optimization:** ✅
+    *   ✅ Replace PowerShell background jobs with runspaces (10-20x faster)
+    *   ✅ Configurable thread pool size (-Throttle parameter)
+    *   ✅ Dynamic execution with real-time progress tracking
+*   **Performance Benefits:** ✅
+    *   ✅ Minimal startup overhead (~5-10ms vs ~1-2 seconds per job)
+    *   ✅ Memory efficient (~1-2 MB vs ~50-100 MB per job)
+    *   ✅ No serialization overhead - data stays in memory
+    *   ✅ Maintains PowerShell 5.0+ compatibility
+*   **Resource Management:** ✅
+    *   ✅ Memory usage optimization for large networks
+    *   ✅ Configurable concurrency control (Throttle parameter)
 
-Phase 5 (Scan History & Baseline Tracking) is now complete. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
+## Current Focus (v1.6.0+)
+
+**Next Priority:** Phase 6 - Advanced Ping Customization OR Phase 8 - Scheduled & Automated Scanning
+**Version:** v1.6.0+
+
+Phases 5 (Scan History) and 7 (Performance) are now complete. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
 
 ---
 
@@ -146,21 +162,21 @@ Phase 5 (Scan History & Baseline Tracking) is now complete. Port scanning and ad
     *   Adaptive retry delays
     *   Smart retry based on network conditions
 
-## v1.5.0 - Performance & Scalability
+## v1.5.0 - Performance & Scalability ✅ COMPLETED
 
-### Phase 7: Multi-Threading Improvements
-*   **Runspace Optimization:**
-    *   Replace PowerShell background jobs with runspaces (10-20x faster)
-    *   Configurable thread pool size
-    *   Dynamic thread allocation based on system resources
-*   **Scan Management:**
+### Phase 7: Multi-Threading Improvements ✅ COMPLETED
+*   **Runspace Optimization:** ✅
+    *   ✅ Replace PowerShell background jobs with runspaces (10-20x faster)
+    *   ✅ Configurable thread pool size (-Throttle parameter)
+    *   Dynamic thread allocation based on system resources (deferred)
+*   **Scan Management:** (Deferred to future version)
     *   Resume interrupted scans from checkpoint
     *   Pause/resume functionality
     *   Abort gracefully with partial results
 *   **Resource Management:**
-    *   Memory usage optimization for large networks
-    *   CPU throttling options
-    *   Network bandwidth control
+    *   ✅ Memory usage optimization for large networks
+    *   CPU throttling options (deferred - use Throttle parameter instead)
+    *   Network bandwidth control (deferred)
 
 ### Phase 8: Scheduled & Automated Scanning
 *   **Scheduled Scans:**

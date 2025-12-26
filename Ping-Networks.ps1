@@ -53,6 +53,10 @@
 .PARAMETER CompareBaseline
     (Optional) Path to a previous scan result file (JSON) to compare against current scan.
     Generates a change detection report showing new devices, offline devices, and status changes.
+.PARAMETER Throttle
+    (Optional) The maximum number of concurrent ping operations (runspace pool size). Default is 50.
+    Higher values = faster scans but more CPU/memory usage. Recommended range: 20-100.
+    Increase for large networks or fast connections, decrease for resource-constrained systems.
 .PARAMETER MaxPings
     (Optional) The maximum number of hosts to ping per network. If not specified, all usable hosts will be pinged.
 .PARAMETER Timeout
@@ -124,6 +128,9 @@ param(
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [string]$CompareBaseline,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [int]$Throttle = 50,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [int]$MaxPings,
@@ -406,7 +413,7 @@ try {
         }
 
         # Ping all hosts in this network
-        $pingResults = Start-Ping -Hosts $hostsToPing -Timeout $Timeout -Retries $Retries
+        $pingResults = Start-Ping -Hosts $hostsToPing -Throttle $Throttle -Timeout $Timeout -Retries $Retries
         
         $reachableCount = ($pingResults | Where-Object { $_.Reachable }).Count
         $unreachableCount = $hostsToPing.Count - $reachableCount
