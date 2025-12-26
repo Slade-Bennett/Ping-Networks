@@ -25,7 +25,7 @@ This roadmap outlines the planned development and future direction for the Ping-
 *   **Usability and UX Consistency:** Refined parameter handling, error messages, and default behaviors.
 *   **Module Metadata and Documentation:** Completed `README.md` and established clear repository structure.
 
-## Current Focus (v1.2.0 - Foundation Enhancements)
+## Completed Phases (v1.2.0)
 
 ### Phase 1: Core Output & Reporting Improvements ✅ COMPLETED
 *   **Enhanced Progress Reporting:** ✅
@@ -43,7 +43,7 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ XML export for integration with other tools
     *   CSV export (already supported)
 
-### Phase 2: Enhanced Input Flexibility
+### Phase 2: Enhanced Input Flexibility ✅ COMPLETED
 *   **CIDR Input Improvements:** ✅ COMPLETED
     *   ✅ Accept CIDR notation directly in Excel (e.g., "10.0.0.0/24" without separate subnet mask column)
     *   ✅ Support for IP ranges (e.g., "10.0.0.1-10.0.0.50")
@@ -52,36 +52,47 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ CSV file input support (alternative to Excel)
     *   ✅ Read from text files (one network per line)
     *   Direct PowerShell arrays/objects as input (deferred - use case unclear)
-*   **Advanced Filtering Options:**
-    *   Exclude specific IPs or ranges from scans
-    *   Scan only odd/even IPs (useful for some network designs)
-    *   Custom host lists (scan specific IPs from a larger subnet)
+*   **Advanced Filtering Options:** ✅ COMPLETED
+    *   ✅ Exclude specific IPs or ranges from scans (-ExcludeIPs parameter)
+    *   ✅ Scan only odd/even IPs (-OddOnly, -EvenOnly switches)
+    *   ✅ Filtering works with all input formats and network types
 
-## v1.3.0 - Advanced Scanning Capabilities
+## Current Focus (v1.3.0+)
 
-### Phase 3: Port Scanning & Service Discovery
-*   **Port Scanning Features:**
+**Next Priority:** Phase 5 - Scan History & Baseline Tracking
+**Version:** v1.4.0 - Data Management & Analysis
+
+The focus is now on data management features like historical tracking, baseline comparisons, and trend analysis. Port scanning and advanced discovery features (Phases 3-4) are deferred as they are not immediate priorities.
+
+---
+
+## v1.3.0 - Advanced Scanning Capabilities (Deferred)
+
+### Phase 3: Port Scanning & Service Discovery ⏭️ SKIPPED
+**Status:** Deferred - Not a priority feature. Focusing on data management and analysis instead.
+*   **Port Scanning Features:** (Deferred)
     *   Add optional port scanning for reachable hosts
     *   Common ports presets (HTTP:80, HTTPS:443, SSH:22, RDP:3389, etc.)
     *   Custom port lists and ranges
     *   TCP/UDP port support
-*   **Service Identification:**
+*   **Service Identification:** (Deferred)
     *   Identify common services running on open ports
     *   Banner grabbing for service version detection
     *   Create service map showing what runs where
     *   Export service inventory to Excel/HTML
 
-### Phase 4: Network Discovery Enhancements
-*   **MAC Address Resolution:**
+### Phase 4: Network Discovery Enhancements ⏭️ SKIPPED
+**Status:** Deferred - Advanced discovery features not immediately needed.
+*   **MAC Address Resolution:** (Deferred)
     *   Use ARP tables to get MAC addresses for local network hosts
     *   MAC OUI lookup to identify device manufacturers
     *   Device type classification (printer, router, workstation, etc.)
     *   Export MAC address inventory
-*   **Device Fingerprinting:**
+*   **Device Fingerprinting:** (Deferred)
     *   TTL-based OS detection (Windows=128, Linux=64, macOS=64, etc.)
     *   Response pattern analysis for device identification
     *   Device classification and labeling
-*   **Discovery Modes:**
+*   **Discovery Modes:** (Deferred)
     *   **Quick Scan** - ping only common hosts (.1, .254, gateways)
     *   **Smart Scan** - adaptive scanning based on response patterns
     *   **Stealth Scan** - slower, less aggressive pinging to avoid detection

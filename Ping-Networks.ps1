@@ -40,6 +40,13 @@
     (Optional) Generate XML output for integration with other tools.
 .PARAMETER Csv
     (Optional) Generate CSV output for simple tabular data.
+.PARAMETER ExcludeIPs
+    (Optional) Array of IP addresses to exclude from scanning. Supports individual IPs or ranges.
+    Example: -ExcludeIPs "192.168.1.1","192.168.1.100-192.168.1.110"
+.PARAMETER OddOnly
+    (Optional) Scan only odd IP addresses (e.g., .1, .3, .5). Useful for certain network designs.
+.PARAMETER EvenOnly
+    (Optional) Scan only even IP addresses (e.g., .2, .4, .6). Useful for certain network designs.
 .PARAMETER MaxPings
     (Optional) The maximum number of hosts to ping per network. If not specified, all usable hosts will be pinged.
 .PARAMETER Timeout
@@ -64,6 +71,15 @@
 .EXAMPLE
     .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html -MaxPings 20
     # Generate HTML report with maximum 20 hosts per network from CSV input
+.EXAMPLE
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.txt' -Html -ExcludeIPs "10.0.0.1","10.0.0.254"
+    # Scan networks but exclude gateway and broadcast IPs
+.EXAMPLE
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -OddOnly
+    # Scan only odd IP addresses (useful for dual-stack networks)
+.EXAMPLE
+    .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html -ExcludeIPs "192.168.1.100-192.168.1.110"
+    # Exclude an entire range of IPs from scanning
 #>
 [CmdletBinding(DefaultParameterSetName = 'Default')]
 param(
@@ -87,6 +103,15 @@ param(
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [switch]$Csv,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string[]]$ExcludeIPs,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$OddOnly,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$EvenOnly,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [int]$MaxPings,
@@ -298,11 +323,49 @@ try {
             continue
         }
 
+        # Apply filtering options
+        $filteredHosts = $usableHosts
+
+        # Filter: Exclude specific IPs
+        if ($ExcludeIPs) {
+            $excludeList = @()
+            foreach ($exclude in $ExcludeIPs) {
+                if ($exclude -match '^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})-(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$') {
+                    # IP range to exclude
+                    $excludeRange = Get-IPRange -StartIP $matches[1] -EndIP $matches[2]
+                    $excludeList += $excludeRange
+                } else {
+                    # Single IP to exclude
+                    $excludeList += $exclude
+                }
+            }
+            $filteredHosts = $filteredHosts | Where-Object { $_ -notin $excludeList }
+            Write-Verbose "Excluded $($excludeList.Count) IP(s). Remaining: $($filteredHosts.Count)"
+        }
+
+        # Filter: Odd IPs only
+        if ($OddOnly) {
+            $filteredHosts = $filteredHosts | Where-Object {
+                $lastOctet = ([System.Net.IPAddress]$_).GetAddressBytes()[3]
+                ($lastOctet % 2) -eq 1
+            }
+            Write-Verbose "Filtered to odd IPs only. Remaining: $($filteredHosts.Count)"
+        }
+
+        # Filter: Even IPs only
+        if ($EvenOnly) {
+            $filteredHosts = $filteredHosts | Where-Object {
+                $lastOctet = ([System.Net.IPAddress]$_).GetAddressBytes()[3]
+                ($lastOctet % 2) -eq 0
+            }
+            Write-Verbose "Filtered to even IPs only. Remaining: $($filteredHosts.Count)"
+        }
+
         $hostsToPing = if ($PSBoundParameters.ContainsKey('MaxPings')) {
-            $usableHosts | Select-Object -First $MaxPings
+            $filteredHosts | Select-Object -First $MaxPings
         }
         else {
-            $usableHosts
+            $filteredHosts
         }
 
         # Validate $hostsToPing before calling Start-Ping

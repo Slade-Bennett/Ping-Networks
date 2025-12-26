@@ -10,6 +10,10 @@ Ping-Networks is a PowerShell module that pings all hosts in specified networks 
     *   **IP Ranges:** `192.168.1.1-192.168.1.20` (scans specific range)
     *   **Multiple File Types:** Excel (.xlsx), CSV (.csv), Text (.txt)
     *   **Traditional Format:** Backward compatible with IP/Subnet Mask/CIDR columns
+*   **Advanced Filtering:**
+    *   **Exclude IPs:** Skip specific IPs or ranges (e.g., gateways, reserved IPs)
+    *   **Odd/Even Filter:** Scan only odd or even IP addresses
+    *   **Flexible Exclusion:** Works with individual IPs or IP ranges
 *   **Universal CIDR Support:** Works with any standard CIDR notation (/8 through /30) - /24, /28, /16, etc.
 *   **Accurate Subnet Calculations:** Uses bitwise operations for precise network address, broadcast address, and host range calculations.
 *   **Parallel Execution:** Pings hosts concurrently using PowerShell background jobs for maximum speed (configurable batch size).
@@ -67,6 +71,9 @@ The script supports multiple input file formats for maximum flexibility:
 *   `Json`: (Switch) Generate JSON output for programmatic consumption.
 *   `Xml`: (Switch) Generate XML output for integration with other tools.
 *   `Csv`: (Switch) Generate CSV output for simple tabular data.
+*   `ExcludeIPs`: (Optional) Array of IP addresses or ranges to exclude from scanning. Example: `-ExcludeIPs "192.168.1.1","192.168.1.100-192.168.1.110"`
+*   `OddOnly`: (Switch) Scan only odd IP addresses (.1, .3, .5, etc.). Useful for specific network designs.
+*   `EvenOnly`: (Switch) Scan only even IP addresses (.2, .4, .6, etc.). Useful for specific network designs.
 *   `MaxPings`: (Optional) The maximum number of hosts to ping per network. If not specified, all usable hosts will be pinged.
 *   `Timeout`: (Optional) The timeout in seconds for each ping. Default is 1 second.
 *   `Retries`: (Optional) The number of retries for each ping. Default is 0.
@@ -131,6 +138,30 @@ Generate HTML report scanning only the first 10 usable hosts in each network.
 
 Generate all available output formats in a custom directory from a single scan.
 
+### Exclude Specific IPs
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.txt' -Html -ExcludeIPs "10.0.0.1","10.0.0.254"
+```
+
+Scan networks but exclude gateway IPs (commonly .1 and .254).
+
+### Exclude IP Range
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html -ExcludeIPs "192.168.1.100-192.168.1.110"
+```
+
+Exclude an entire range of IPs from scanning (useful for reserved DHCP ranges).
+
+### Scan Only Odd IPs
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -OddOnly
+```
+
+Scan only odd IP addresses. Useful for dual-stack networks or specific network designs.
+
 ## Architecture
 
 The project is organized into modular components for maintainability:
@@ -162,6 +193,11 @@ Ping-Networks/
 ## Recent Improvements
 
 ### Version 1.2.0 (Latest)
+*   **Advanced Filtering Options:**
+    *   Exclude specific IPs or ranges from scans (`-ExcludeIPs`)
+    *   Scan only odd IPs (`-OddOnly`) or even IPs (`-EvenOnly`)
+    *   Supports both individual IP exclusion and range exclusion
+    *   Useful for skipping gateways, DHCP ranges, or reserved IPs
 *   **Multiple Input Sources:**
     *   CSV file support (.csv) - lightweight alternative to Excel
     *   Text file support (.txt) - one network per line for quick scans
