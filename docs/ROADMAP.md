@@ -90,12 +90,34 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ Memory usage optimization for large networks
     *   ✅ Configurable concurrency control (Throttle parameter)
 
-## Current Focus (v1.6.0+)
+## Completed Phases (v1.6.0)
 
-**Next Priority:** Phase 6 - Advanced Ping Customization OR Phase 8 - Scheduled & Automated Scanning
-**Version:** v1.6.0+
+### Phase 8: Scheduled & Automated Scanning ✅ COMPLETED
+*   **Email Notifications:** ✅
+    *   ✅ Email notifications on scan completion
+    *   ✅ Email alerts on baseline changes detection
+    *   ✅ SMTP authentication support (username/password)
+    *   ✅ SSL/TLS encryption support
+    *   ✅ HTML-formatted professional emails
+    *   ✅ Automatic report attachments (Excel, HTML, JSON)
+    *   ✅ Multiple recipient support
+*   **Scheduled Scans:** ✅
+    *   ✅ New-ScheduledScan.ps1 helper script
+    *   ✅ Daily, Weekly, and Monthly schedule support
+    *   ✅ Windows Scheduled Task integration
+    *   ✅ Configurable scan times
+    *   ✅ Integrated email notifications in scheduled tasks
+*   **Automated Reporting:** ✅
+    *   ✅ Auto-generate and email reports
+    *   ✅ Scheduled report delivery via email
+    *   ✅ Change alerts with detailed device information
 
-Phases 5 (Scan History) and 7 (Performance) are now complete. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
+## Current Focus (v1.7.0+)
+
+**Next Priority:** Phase 6 - Advanced Ping Customization
+**Version:** v1.7.0+
+
+Phases 5 (Scan History), 7 (Performance), and 8 (Automation) are now complete. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
 
 ---
 
@@ -178,20 +200,20 @@ Phases 5 (Scan History) and 7 (Performance) are now complete. Port scanning and 
     *   CPU throttling options (deferred - use Throttle parameter instead)
     *   Network bandwidth control (deferred)
 
-### Phase 8: Scheduled & Automated Scanning
-*   **Scheduled Scans:**
-    *   Create Windows scheduled tasks for automatic scanning
-    *   Recurring scan schedules (daily, weekly, monthly)
-    *   Time-based scan triggers
-*   **Notifications & Alerting:**
-    *   Email notifications on scan completion
-    *   Alert on network changes or anomalies
-    *   Configurable alert thresholds
-    *   SMTP configuration for email delivery
-*   **Automated Reporting:**
-    *   Auto-generate and distribute reports
-    *   Scheduled report delivery via email
-    *   Report templates and customization
+### Phase 8: Scheduled & Automated Scanning ✅ COMPLETED
+*   **Scheduled Scans:** ✅
+    *   ✅ Create Windows scheduled tasks via New-ScheduledScan.ps1
+    *   ✅ Recurring scan schedules (daily, weekly, monthly)
+    *   ✅ Time-based scan triggers
+*   **Notifications & Alerting:** ✅
+    *   ✅ Email notifications on scan completion
+    *   ✅ Alert on network changes (new/offline/recovered devices)
+    *   Configurable alert thresholds (deferred - currently alerts on any change)
+    *   ✅ SMTP configuration with authentication and SSL/TLS
+*   **Automated Reporting:** ✅
+    *   ✅ Auto-generate and distribute reports via email
+    *   ✅ Scheduled report delivery via email
+    *   Report templates and customization (deferred - uses default HTML template)
 
 ## Long-Term Vision (v2.0+)
 

@@ -757,4 +757,148 @@ function Export-XmlReport {
     }
 }
 
-Export-ModuleMember -Function Export-HtmlReport, Export-JsonReport, Export-XmlReport
+<#
+.SYNOPSIS
+    Sends email notification with scan results and optional attachments.
+.DESCRIPTION
+    Sends an email via SMTP with scan summary and optionally attaches report files.
+    Supports authentication, SSL/TLS, and multiple recipients.
+
+    EMAIL PROVIDERS CONFIGURATION:
+    - Gmail: smtp.gmail.com, Port 587, UseSSL, requires App Password
+    - Outlook/Office365: smtp.office365.com, Port 587, UseSSL
+    - Yahoo: smtp.mail.yahoo.com, Port 587, UseSSL
+    - Generic SMTP: Configure based on provider documentation
+.PARAMETER EmailTo
+    Array of recipient email addresses.
+.PARAMETER EmailFrom
+    Sender email address.
+.PARAMETER Subject
+    Email subject line.
+.PARAMETER Body
+    Email body content (plain text or HTML).
+.PARAMETER SmtpServer
+    SMTP server address.
+.PARAMETER SmtpPort
+    SMTP server port (default: 587).
+.PARAMETER SmtpUsername
+    Username for SMTP authentication (optional).
+.PARAMETER SmtpPassword
+    Password for SMTP authentication (optional).
+.PARAMETER UseSSL
+    Use SSL/TLS encryption for SMTP connection.
+.PARAMETER Attachments
+    Array of file paths to attach to the email.
+.PARAMETER IsBodyHtml
+    Specify if email body contains HTML content.
+.OUTPUTS
+    None. Sends email and writes status to host.
+.EXAMPLE
+    Send-EmailNotification -EmailTo "admin@example.com" -EmailFrom "scanner@example.com" `
+        -Subject "Network Scan Complete" -Body "Scan finished successfully" `
+        -SmtpServer "smtp.gmail.com" -SmtpPort 587 -UseSSL `
+        -SmtpUsername "scanner@gmail.com" -SmtpPassword "app-password"
+.NOTES
+    Requires .NET System.Net.Mail namespace.
+    For Gmail, use App Passwords: https://support.google.com/accounts/answer/185833
+#>
+function Send-EmailNotification {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$EmailTo,
+
+        [Parameter(Mandatory = $true)]
+        [string]$EmailFrom,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Subject,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Body,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SmtpServer,
+
+        [Parameter(Mandatory = $false)]
+        [int]$SmtpPort = 587,
+
+        [Parameter(Mandatory = $false)]
+        [string]$SmtpUsername,
+
+        [Parameter(Mandatory = $false)]
+        [string]$SmtpPassword,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$UseSSL,
+
+        [Parameter(Mandatory = $false)]
+        [string[]]$Attachments,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$IsBodyHtml
+    )
+
+    try {
+        Write-Verbose "Preparing email notification to: $($EmailTo -join ', ')"
+
+        # Create mail message
+        $mailMessage = New-Object System.Net.Mail.MailMessage
+        $mailMessage.From = $EmailFrom
+        foreach ($recipient in $EmailTo) {
+            $mailMessage.To.Add($recipient)
+        }
+        $mailMessage.Subject = $Subject
+        $mailMessage.Body = $Body
+        $mailMessage.IsBodyHtml = $IsBodyHtml
+
+        # Add attachments if provided
+        if ($Attachments) {
+            foreach ($attachment in $Attachments) {
+                if (Test-Path $attachment) {
+                    $file = New-Object System.Net.Mail.Attachment($attachment)
+                    $mailMessage.Attachments.Add($file)
+                    Write-Verbose "Added attachment: $attachment"
+                } else {
+                    Write-Warning "Attachment not found: $attachment"
+                }
+            }
+        }
+
+        # Create SMTP client
+        $smtpClient = New-Object System.Net.Mail.SmtpClient($SmtpServer, $SmtpPort)
+        $smtpClient.EnableSsl = $UseSSL
+
+        # Configure authentication if credentials provided
+        if ($SmtpUsername -and $SmtpPassword) {
+            $smtpClient.Credentials = New-Object System.Net.NetworkCredential($SmtpUsername, $SmtpPassword)
+            Write-Verbose "SMTP authentication configured for user: $SmtpUsername"
+        }
+
+        # Send email
+        Write-Verbose "Sending email via $SmtpServer:$SmtpPort (SSL: $UseSSL)..."
+        $smtpClient.Send($mailMessage)
+        Write-Host "Email notification sent successfully to: $($EmailTo -join ', ')" -ForegroundColor Green
+
+    }
+    catch {
+        Write-Error "Failed to send email notification: $_"
+        Write-Verbose "SMTP Server: $SmtpServer, Port: $SmtpPort, SSL: $UseSSL"
+    }
+    finally {
+        # Clean up
+        if ($mailMessage) {
+            if ($mailMessage.Attachments) {
+                foreach ($attachment in $mailMessage.Attachments) {
+                    $attachment.Dispose()
+                }
+            }
+            $mailMessage.Dispose()
+        }
+        if ($smtpClient) {
+            $smtpClient.Dispose()
+        }
+    }
+}
+
+Export-ModuleMember -Function Export-HtmlReport, Export-JsonReport, Export-XmlReport, Send-EmailNotification

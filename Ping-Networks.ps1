@@ -63,6 +63,26 @@
     (Optional) The timeout in seconds for each ping. The default is 1 second.
 .PARAMETER Retries
     (Optional) The number of retries for each ping. The default is 0.
+.PARAMETER EmailTo
+    (Optional) Array of email addresses to send reports to. Required if EmailOnCompletion or EmailOnChanges is used.
+    Example: -EmailTo "admin@example.com","team@example.com"
+.PARAMETER EmailFrom
+    (Optional) Email address to send from. Required if email notifications are enabled.
+.PARAMETER SmtpServer
+    (Optional) SMTP server address for sending emails. Required if email notifications are enabled.
+    Example: -SmtpServer "smtp.gmail.com" or "smtp.office365.com"
+.PARAMETER SmtpPort
+    (Optional) SMTP server port. Default is 587 (TLS). Use 25 for unencrypted or 465 for SSL.
+.PARAMETER SmtpUsername
+    (Optional) Username for SMTP authentication. Required for most email providers.
+.PARAMETER SmtpPassword
+    (Optional) Password for SMTP authentication. Use app-specific passwords for Gmail/Outlook.
+.PARAMETER UseSSL
+    (Optional) Use SSL/TLS encryption for SMTP connection. Recommended for port 587 or 465.
+.PARAMETER EmailOnCompletion
+    (Optional) Send email notification when scan completes with summary and attached reports.
+.PARAMETER EmailOnChanges
+    (Optional) Send email alert when baseline comparison detects network changes (new/offline/recovered devices).
 .EXAMPLE
     .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
     # Basic usage with Excel file - generates Excel output in Documents folder by default
@@ -139,7 +159,34 @@ param(
     [int]$Timeout = 1,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
-    [int]$Retries = 0
+    [int]$Retries = 0,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string[]]$EmailTo,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$EmailFrom,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$SmtpServer,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [int]$SmtpPort = 587,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$SmtpUsername,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$SmtpPassword,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$UseSSL,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$EmailOnCompletion,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$EmailOnChanges
 )
 
 if ($PSCmdlet.ParameterSetName -eq 'Default') {
@@ -717,6 +764,165 @@ try {
                 Write-Warning "Failed to export change report: $($_.Exception.Message)"
             }
         }
+
+        #region EMAIL NOTIFICATIONS
+
+        # Send email notifications if configured
+        if (($EmailOnCompletion -or $EmailOnChanges) -and $EmailTo -and $EmailFrom -and $SmtpServer) {
+
+            # Determine if we should send email
+            $shouldSendEmail = $false
+            $emailSubject = ""
+            $emailBodyParts = @()
+
+            # Check if we should send completion notification
+            if ($EmailOnCompletion) {
+                $shouldSendEmail = $true
+                $emailSubject = "Network Scan Completed - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+
+                # Build completion email body
+                $scanEndTime = Get-Date
+                $scanDuration = $scanEndTime - $scanStartTime
+                $durationFormatted = "{0:D2}:{1:D2}:{2:D2}" -f $scanDuration.Hours, $scanDuration.Minutes, $scanDuration.Seconds
+
+                $totalScanned = $allResults.Count
+                $reachable = ($allResults | Where-Object { $_.Status -eq "Reachable" }).Count
+                $unreachable = ($allResults | Where-Object { $_.Status -eq "Unreachable" }).Count
+
+                $emailBodyParts += @"
+<h2>Network Scan Summary</h2>
+<p><strong>Scan Date:</strong> $($scanStartTime.ToString("yyyy-MM-dd HH:mm:ss"))</p>
+<p><strong>Duration:</strong> $durationFormatted</p>
+<p><strong>Input File:</strong> $InputPath</p>
+<p><strong>Networks Scanned:</strong> $networkCount</p>
+
+<h3>Results</h3>
+<ul>
+    <li><strong>Total Hosts Scanned:</strong> $totalScanned</li>
+    <li><strong style="color: green;">Reachable Hosts:</strong> $reachable</li>
+    <li><strong style="color: red;">Unreachable Hosts:</strong> $unreachable</li>
+</ul>
+"@
+            }
+
+            # Check if we should send change alert
+            if ($EmailOnChanges -and $changeReport) {
+                $shouldSendEmail = $true
+                if (-not $emailSubject) {
+                    $emailSubject = "Network Changes Detected - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+                } else {
+                    $emailSubject = "Network Scan & Changes Detected - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+                }
+
+                $newCount = $changeReport.Summary.NewDevices
+                $offlineCount = $changeReport.Summary.OfflineDevices
+                $recoveredCount = $changeReport.Summary.RecoveredDevices
+
+                $changesColor = if (($newCount + $offlineCount) -gt 0) { "orange" } else { "green" }
+
+                $emailBodyParts += @"
+<h2 style="color: $changesColor;">Network Changes Detected</h2>
+<p><strong>Baseline Scan:</strong> $($changeReport.ComparisonMetadata.BaselineScanDate)</p>
+<p><strong>Current Scan:</strong> $($changeReport.ComparisonMetadata.CurrentScanDate)</p>
+
+<h3>Change Summary</h3>
+<ul>
+    <li><strong style="color: $(if ($newCount -gt 0) { 'orange' } else { 'gray' });">New Devices:</strong> $newCount</li>
+    <li><strong style="color: $(if ($offlineCount -gt 0) { 'red' } else { 'gray' });">Devices Offline:</strong> $offlineCount</li>
+    <li><strong style="color: $(if ($recoveredCount -gt 0) { 'green' } else { 'gray' });">Devices Recovered:</strong> $recoveredCount</li>
+</ul>
+"@
+
+                # Add details if changes detected
+                if ($newCount -gt 0) {
+                    $emailBodyParts += "<h4>New Devices:</h4><ul>"
+                    foreach ($device in $changeReport.NewDevices | Select-Object -First 10) {
+                        $emailBodyParts += "<li>$($device.Host) - $($device.Network)</li>"
+                    }
+                    if ($newCount -gt 10) {
+                        $emailBodyParts += "<li><em>... and $($newCount - 10) more</em></li>"
+                    }
+                    $emailBodyParts += "</ul>"
+                }
+
+                if ($offlineCount -gt 0) {
+                    $emailBodyParts += "<h4>Devices Now Offline:</h4><ul>"
+                    foreach ($device in $changeReport.OfflineDevices | Select-Object -First 10) {
+                        $emailBodyParts += "<li>$($device.Host) - $($device.Network) (was: $($device.PreviousHostname))</li>"
+                    }
+                    if ($offlineCount -gt 10) {
+                        $emailBodyParts += "<li><em>... and $($offlineCount - 10) more</em></li>"
+                    }
+                    $emailBodyParts += "</ul>"
+                }
+            }
+
+            # Send email if conditions are met
+            if ($shouldSendEmail) {
+                try {
+                    # Build complete HTML email body
+                    $emailBody = @"
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
+        h3 { color: #34495e; }
+        ul { padding-left: 20px; }
+        p { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>Ping-Networks Scan Report</h1>
+    $($emailBodyParts -join "`n")
+    <hr>
+    <p style="color: gray; font-size: 12px;">Generated by Ping-Networks v1.6.0</p>
+</body>
+</html>
+"@
+
+                    # Collect attachments
+                    $attachments = @()
+                    if ($OutputPath -and (Test-Path $OutputPath)) { $attachments += $OutputPath }
+                    if ($HtmlPath -and (Test-Path $HtmlPath)) { $attachments += $HtmlPath }
+                    if ($JsonPath -and (Test-Path $JsonPath)) { $attachments += $JsonPath }
+                    if ($changeReport -and $changeReportPath -and (Test-Path $changeReportPath)) {
+                        $attachments += $changeReportPath
+                    }
+
+                    # Send email
+                    $emailParams = @{
+                        EmailTo = $EmailTo
+                        EmailFrom = $EmailFrom
+                        Subject = $emailSubject
+                        Body = $emailBody
+                        SmtpServer = $SmtpServer
+                        SmtpPort = $SmtpPort
+                        UseSSL = $UseSSL
+                        IsBodyHtml = $true
+                    }
+
+                    if ($SmtpUsername -and $SmtpPassword) {
+                        $emailParams.SmtpUsername = $SmtpUsername
+                        $emailParams.SmtpPassword = $SmtpPassword
+                    }
+
+                    if ($attachments.Count -gt 0) {
+                        $emailParams.Attachments = $attachments
+                    }
+
+                    Send-EmailNotification @emailParams
+
+                } catch {
+                    Write-Warning "Failed to send email notification: $($_.Exception.Message)"
+                }
+            }
+        }
+        elseif (($EmailOnCompletion -or $EmailOnChanges) -and (-not $EmailTo -or -not $EmailFrom -or -not $SmtpServer)) {
+            Write-Warning "Email notification requested but missing required parameters (EmailTo, EmailFrom, or SmtpServer)"
+        }
+
+        #endregion
     }
     else {
         Write-Warning "No results to export."
