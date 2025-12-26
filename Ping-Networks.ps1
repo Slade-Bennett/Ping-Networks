@@ -344,6 +344,14 @@ try {
     if ($allResults.Count -gt 0) {
         if ($OutputPath) {
             try {
+                # Initialize Excel if needed for output (in case input was CSV/TXT)
+                if (-not $excelApp) {
+                    $excelApp = New-ExcelSession
+                    if (-not $excelApp) {
+                        throw "Failed to start Excel for output."
+                    }
+                }
+
                 Write-Verbose "Exporting results to '$OutputPath'..."
                 $outputWorkbook = Get-ExcelWorkbook -Path $OutputPath -Excel $excelApp
 

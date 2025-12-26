@@ -59,6 +59,12 @@ archived/
 .claude/
 .gemini/
 
-# Test files
-test-*.ps1
-Test*.xlsx
+# Test output files (exclude test scripts in tests/ directory)
+/test-*.ps1
+/Test*.xlsx
+/tests/test-output/
+/tests/*.html
+/tests/*.xlsx
+/tests/*.json
+/tests/*.xml
+/tests/*.csv
