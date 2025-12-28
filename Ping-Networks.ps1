@@ -62,7 +62,16 @@
 .PARAMETER Timeout
     (Optional) The timeout in seconds for each ping. The default is 1 second.
 .PARAMETER Retries
-    (Optional) The number of retries for each ping. The default is 0.
+    (Optional) The number of retries for each ping with exponential backoff (1s, 2s, 4s). The default is 0.
+.PARAMETER Count
+    (Optional) The number of ping attempts per host for response time statistics. The default is 1.
+    Higher values provide more accurate statistics but increase scan time.
+.PARAMETER BufferSize
+    (Optional) The size of the ICMP packet buffer in bytes (1-65500). The default is 32.
+    Useful for MTU testing and detecting path MTU issues. Common values: 32, 64, 1500.
+.PARAMETER TimeToLive
+    (Optional) The Time To Live (TTL) value for ping packets (1-255). The default is 128.
+    Useful for testing maximum hop count and detecting routing loops.
 .PARAMETER EmailTo
     (Optional) Array of email addresses to send reports to. Required if EmailOnCompletion or EmailOnChanges is used.
     Example: -EmailTo "admin@example.com","team@example.com"
@@ -160,6 +169,17 @@ param(
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [int]$Retries = 0,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [int]$Count = 1,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [ValidateRange(1, 65500)]
+    [int]$BufferSize = 32,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [ValidateRange(1, 255)]
+    [int]$TimeToLive = 128,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [string[]]$EmailTo,
@@ -459,8 +479,8 @@ try {
             continue
         }
 
-        # Ping all hosts in this network
-        $pingResults = Start-Ping -Hosts $hostsToPing -Throttle $Throttle -Timeout $Timeout -Retries $Retries
+        # Ping all hosts in this network with advanced parameters
+        $pingResults = Start-Ping -Hosts $hostsToPing -Throttle $Throttle -Count $Count -BufferSize $BufferSize -TimeToLive $TimeToLive -Timeout $Timeout -Retries $Retries
         
         $reachableCount = ($pingResults | Where-Object { $_.Reachable }).Count
         $unreachableCount = $hostsToPing.Count - $reachableCount

@@ -16,8 +16,14 @@ Ping-Networks is a PowerShell module that pings all hosts in specified networks 
     *   **Flexible Exclusion:** Works with individual IPs or IP ranges
 *   **Universal CIDR Support:** Works with any standard CIDR notation (/8 through /30) - /24, /28, /16, etc.
 *   **Accurate Subnet Calculations:** Uses bitwise operations for precise network address, broadcast address, and host range calculations.
-*   **Parallel Execution:** Pings hosts concurrently using PowerShell background jobs for maximum speed (configurable batch size).
+*   **High-Performance Parallel Execution:** Uses runspaces for optimal performance (10-20x faster than background jobs) with configurable concurrency control.
 *   **DNS Resolution:** Automatically resolves hostnames for reachable hosts.
+*   **Advanced Ping Customization:**
+    *   **Response Time Statistics:** Min, max, and average response times for each host
+    *   **Packet Loss Tracking:** Percentage of packets lost during multi-ping tests
+    *   **Custom Packet Size:** Configurable buffer size (1-65500 bytes) for MTU testing
+    *   **TTL Configuration:** Custom Time To Live values for hop count testing
+    *   **Adaptive Retry Logic:** Exponential backoff retry mechanism for unreliable hosts
 *   **Multiple Output Formats:**
     *   **Excel:** Color-coded results with summary statistics and per-network worksheets
     *   **HTML:** Interactive web reports with charts, sortable tables, and search functionality
@@ -79,7 +85,10 @@ The script supports multiple input file formats for maximum flexibility:
 *   `Throttle`: (Optional) The maximum number of concurrent ping operations (runspace pool size). Default is 50. Higher values = faster scans but more CPU/memory usage. Recommended range: 20-100. Example: `-Throttle 100`
 *   `MaxPings`: (Optional) The maximum number of hosts to ping per network. If not specified, all usable hosts will be pinged.
 *   `Timeout`: (Optional) The timeout in seconds for each ping. Default is 1 second.
-*   `Retries`: (Optional) The number of retries for each ping. Default is 0.
+*   `Retries`: (Optional) The number of retries for each ping with exponential backoff (1s, 2s, 4s). Default is 0.
+*   `Count`: (Optional) The number of ping attempts per host for response time statistics. Default is 1. Higher values provide more accurate statistics but increase scan time.
+*   `BufferSize`: (Optional) The size of the ICMP packet buffer in bytes (1-65500). Default is 32. Useful for MTU testing and detecting path MTU issues. Common values: 32, 64, 1500.
+*   `TimeToLive`: (Optional) The Time To Live (TTL) value for ping packets (1-255). Default is 128. Useful for testing maximum hop count and detecting routing loops.
 *   `EmailTo`: (Optional) Array of email addresses to send reports to. Example: `-EmailTo "admin@example.com","team@example.com"`
 *   `EmailFrom`: (Optional) Email address to send from. Required if email notifications are enabled.
 *   `SmtpServer`: (Optional) SMTP server address (e.g., "smtp.gmail.com" or "smtp.office365.com")
@@ -254,6 +263,40 @@ Scan networks, compare against baseline, and send email alert if changes are det
 
 Create a Windows Scheduled Task to automatically scan networks daily at 3 AM with email notifications. Requires administrator privileges.
 
+### Advanced Ping with Response Time Statistics
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Count 5 -Html
+```
+
+Ping each host 5 times and calculate response time statistics (min, max, average) and packet loss percentage. Provides more reliable latency measurements.
+
+### MTU Path Testing
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -BufferSize 1500 -Count 3 -Html
+```
+
+Test network paths with larger packets (1500 bytes) to identify MTU issues. Useful for diagnosing packet fragmentation problems.
+
+### Custom TTL for Hop Testing
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -TimeToLive 64 -Html
+```
+
+Use custom TTL value to test maximum hop count or detect routing loops. Lower TTL values can help identify routing issues.
+
+### Comprehensive Ping Diagnostics
+
+```powershell
+.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+    -Count 10 -BufferSize 1472 -TimeToLive 64 -Retries 2 `
+    -Throttle 100 -Html -Json
+```
+
+Full diagnostic scan with 10 pings per host, large packets for MTU testing, custom TTL, adaptive retry logic, and high concurrency. Generates comprehensive statistics for network quality analysis.
+
 ## Architecture
 
 The project is organized into modular components for maintainability:
@@ -284,7 +327,25 @@ Ping-Networks/
 
 ## Recent Improvements
 
-### Version 1.6.0 (Latest)
+### Version 1.7.0 (Latest)
+*   **Advanced Ping Customization:**
+    *   **Response Time Statistics:** Track min, max, and average response times for each host
+    *   **Packet Loss Tracking:** Calculate packet loss percentage during multi-ping tests
+    *   **Custom Ping Count:** Configure number of ping attempts per host (1-N pings)
+    *   **Custom Packet Size:** Set ICMP buffer size (1-65500 bytes) for MTU testing
+    *   **Custom TTL:** Configure Time To Live values (1-255) for hop limit testing
+    *   **Adaptive Retry Logic:** Exponential backoff retry mechanism (1s, 2s, 4s delays)
+*   **Enhanced Network Diagnostics:**
+    *   Detailed ping statistics in all output formats (Excel, HTML, JSON, XML)
+    *   Network quality analysis with response time trends
+    *   MTU path discovery capabilities
+    *   Hop count testing and routing loop detection
+*   **Improved Results:**
+    *   All ping results include ResponseTime, MinResponseTime, MaxResponseTime
+    *   PacketLoss percentage for reliability assessment
+    *   PingsSent and PingsReceived counts for transparency
+
+### Version 1.6.0
 *   **Email Notifications:**
     *   Send email notifications on scan completion with summary and attachments
     *   Send email alerts when baseline changes are detected

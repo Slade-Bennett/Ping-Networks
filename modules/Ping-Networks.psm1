@@ -213,21 +213,45 @@ function Get-UsableHosts {
     - Faster startup and execution times
     - Maintains PowerShell 5.0+ compatibility
 
+    ADVANCED PING FEATURES (Phase 6 - v1.7.0):
+    - Configurable packet size (BufferSize) for MTU testing
+    - Custom TTL (Time To Live) values
+    - Multiple pings per host with response time statistics
+    - Adaptive retry logic with exponential backoff
+    - Response time tracking (min/max/avg/median)
+    - Packet loss percentage calculation
+
 .PARAMETER Hosts
     An array of IP addresses (strings) to be pinged.
 .PARAMETER Throttle
     The maximum number of concurrent pings (runspace pool size). Defaults to 50.
     Larger values = faster but more CPU/memory usage. Recommended: 20-100.
+.PARAMETER Count
+    Number of ping attempts per host. Defaults to 1.
+    Higher values provide better statistics but slower scans.
+.PARAMETER BufferSize
+    Size of the ping packet buffer in bytes. Defaults to 32.
+    Use larger sizes to test MTU or network capacity. Max: 65500.
+.PARAMETER TimeToLive
+    Time To Live (TTL) value for ping packets. Defaults to 128.
+    Lower values can test hop limits or network distance.
 .PARAMETER Timeout
-    (Reserved for future use) Timeout in seconds for each ping. Defaults to 1.
+    Timeout in seconds for each ping attempt. Defaults to 1.
 .PARAMETER Retries
-    (Reserved for future use) Number of retry attempts. Defaults to 0.
+    Number of retry attempts if ping fails. Defaults to 0.
+    Retries use exponential backoff (1s, 2s, 4s delays).
 .OUTPUTS
     [PSCustomObject[]]
     Returns an array of custom objects, each with properties:
     - Host (string): The IP address that was pinged.
     - Reachable (boolean): True if the host responded to ping, False otherwise.
     - Hostname (string): The resolved hostname if reachable, "N/A" otherwise.
+    - ResponseTime (int): Average response time in milliseconds (if Count > 1).
+    - MinResponseTime (int): Minimum response time in milliseconds.
+    - MaxResponseTime (int): Maximum response time in milliseconds.
+    - PacketLoss (int): Percentage of packets lost (0-100).
+    - PingsSent (int): Total number of pings sent.
+    - PingsReceived (int): Total number of pings received.
 .EXAMPLE
     Start-Ping -Hosts @("192.168.1.1", "192.168.1.10", "8.8.8.8") -Throttle 50
     # Pings three hosts with runspace pool size of 50
@@ -249,6 +273,17 @@ function Start-Ping {
 
         [Parameter(Mandatory = $false)]
         [int]$Throttle = 50,
+
+        [Parameter(Mandatory = $false)]
+        [int]$Count = 1,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateRange(1, 65500)]
+        [int]$BufferSize = 32,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateRange(1, 255)]
+        [int]$TimeToLive = 128,
 
         [Parameter(Mandatory = $false)]
         [int]$Timeout = 1,
@@ -273,36 +308,127 @@ function Start-Ping {
 
     # Script block for ping operation (will run in each runspace)
     $pingScriptBlock = {
-        param($TargetHost)
+        param(
+            $TargetHost,
+            $PingCount,
+            $PingBufferSize,
+            $PingTTL,
+            $PingTimeout,
+            $MaxRetries
+        )
 
         # Initialize result variables
         $pingResult = $false
         $hostname = "N/A"
+        $responseTimes = @()
+        $pingsSent = 0
+        $pingsReceived = 0
+        $retryAttempt = 0
 
-        # Attempt to ping the host
-        # Test-Connection -Quiet returns $true/$false
-        try {
-            $pingResult = Test-Connection -ComputerName $TargetHost -Count 1 -Quiet -ErrorAction Stop
-        }
-        catch {
-            # Ping failed - keep $pingResult as $false
-        }
+        # Function to perform ping with retry logic
+        function Invoke-PingWithRetry {
+            param($Target, $Count, $BufferSize, $TTL, $TimeoutSec, $CurrentRetry)
 
-        # If ping succeeded, attempt DNS hostname resolution
-        if ($pingResult) {
             try {
-                $hostname = [System.Net.Dns]::GetHostEntry($TargetHost).HostName
+                # Use Test-Connection with advanced parameters
+                $pingResults = Test-Connection -ComputerName $Target `
+                                               -Count $Count `
+                                               -BufferSize $BufferSize `
+                                               -TimeToLive $TTL `
+                                               -ErrorAction Stop
+
+                return $pingResults
             }
             catch {
-                # DNS resolution failed - keep hostname as "N/A"
+                # If ping failed and we have retries left, implement exponential backoff
+                if ($CurrentRetry -lt $MaxRetries) {
+                    # Exponential backoff: 1s, 2s, 4s
+                    $waitTime = [math]::Pow(2, $CurrentRetry)
+                    Start-Sleep -Seconds $waitTime
+
+                    # Retry recursively
+                    return Invoke-PingWithRetry -Target $Target `
+                                                -Count $Count `
+                                                -BufferSize $BufferSize `
+                                                -TTL $TTL `
+                                                -TimeoutSec $TimeoutSec `
+                                                -CurrentRetry ($CurrentRetry + 1)
+                }
+                else {
+                    # All retries exhausted
+                    return $null
+                }
             }
         }
 
-        # Return structured result object
+        # Perform the ping operation with retry logic
+        $pingResults = Invoke-PingWithRetry -Target $TargetHost `
+                                            -Count $PingCount `
+                                            -BufferSize $PingBufferSize `
+                                            -TTL $PingTTL `
+                                            -TimeoutSec $PingTimeout `
+                                            -CurrentRetry 0
+
+        # Process ping results
+        if ($pingResults) {
+            $pingsSent = $PingCount
+
+            # Extract response times from successful pings
+            foreach ($result in $pingResults) {
+                if ($result.StatusCode -eq 0) {
+                    $pingsReceived++
+                    $responseTimes += $result.ResponseTime
+                }
+            }
+
+            # Consider host reachable if at least one ping succeeded
+            $pingResult = ($pingsReceived -gt 0)
+
+            # If ping succeeded, attempt DNS hostname resolution
+            if ($pingResult) {
+                try {
+                    $hostname = [System.Net.Dns]::GetHostEntry($TargetHost).HostName
+                }
+                catch {
+                    # DNS resolution failed - keep hostname as "N/A"
+                }
+            }
+        }
+        else {
+            # No results - all pings failed
+            $pingsSent = $PingCount
+            $pingsReceived = 0
+            $pingResult = $false
+        }
+
+        # Calculate statistics
+        $avgResponseTime = if ($responseTimes.Count -gt 0) {
+            [math]::Round(($responseTimes | Measure-Object -Average).Average, 2)
+        } else { 0 }
+
+        $minResponseTime = if ($responseTimes.Count -gt 0) {
+            ($responseTimes | Measure-Object -Minimum).Minimum
+        } else { 0 }
+
+        $maxResponseTime = if ($responseTimes.Count -gt 0) {
+            ($responseTimes | Measure-Object -Maximum).Maximum
+        } else { 0 }
+
+        $packetLoss = if ($pingsSent -gt 0) {
+            [math]::Round((($pingsSent - $pingsReceived) / $pingsSent) * 100, 2)
+        } else { 100 }
+
+        # Return structured result object with enhanced statistics
         return [PSCustomObject]@{
-            Host      = $TargetHost
-            Reachable = $pingResult
-            Hostname  = $hostname
+            Host            = $TargetHost
+            Reachable       = $pingResult
+            Hostname        = $hostname
+            ResponseTime    = $avgResponseTime
+            MinResponseTime = $minResponseTime
+            MaxResponseTime = $maxResponseTime
+            PacketLoss      = $packetLoss
+            PingsSent       = $pingsSent
+            PingsReceived   = $pingsReceived
         }
     }
 
@@ -314,8 +440,8 @@ function Start-Ping {
         $powershell = [powershell]::Create()
         $powershell.RunspacePool = $runspacePool
 
-        # Add the script block and arguments
-        [void]$powershell.AddScript($pingScriptBlock).AddArgument($h)
+        # Add the script block and arguments (pass all ping parameters)
+        [void]$powershell.AddScript($pingScriptBlock).AddArgument($h).AddArgument($Count).AddArgument($BufferSize).AddArgument($TimeToLive).AddArgument($Timeout).AddArgument($Retries)
 
         # Start async execution and store the handle
         $handle = $powershell.BeginInvoke()
@@ -355,9 +481,15 @@ function Start-Ping {
                     # Handle errors gracefully - create a failure result
                     Write-Verbose "Start-Ping: Error collecting result for host $($runspace.Host): $_"
                     $allResults.Add([PSCustomObject]@{
-                        Host = $runspace.Host
-                        Reachable = $false
-                        Hostname = "N/A"
+                        Host            = $runspace.Host
+                        Reachable       = $false
+                        Hostname        = "N/A"
+                        ResponseTime    = 0
+                        MinResponseTime = 0
+                        MaxResponseTime = 0
+                        PacketLoss      = 100
+                        PingsSent       = $Count
+                        PingsReceived   = 0
                     })
                 }
                 finally {

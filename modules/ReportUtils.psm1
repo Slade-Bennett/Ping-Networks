@@ -876,7 +876,7 @@ function Send-EmailNotification {
         }
 
         # Send email
-        Write-Verbose "Sending email via $SmtpServer:$SmtpPort (SSL: $UseSSL)..."
+        Write-Verbose "Sending email via ${SmtpServer}:${SmtpPort} (SSL: $UseSSL)..."
         $smtpClient.Send($mailMessage)
         Write-Host "Email notification sent successfully to: $($EmailTo -join ', ')" -ForegroundColor Green
 

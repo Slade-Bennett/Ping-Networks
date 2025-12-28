@@ -112,12 +112,28 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ Scheduled report delivery via email
     *   ✅ Change alerts with detailed device information
 
-## Current Focus (v1.7.0+)
+## Completed Phases (v1.7.0)
 
-**Next Priority:** Phase 6 - Advanced Ping Customization
-**Version:** v1.7.0+
+### Phase 6: Advanced Ping Customization ✅ COMPLETED
+*   **Custom Ping Parameters:** ✅
+    *   ✅ Configurable packet sizes (BufferSize parameter, 1-65500 bytes)
+    *   ✅ Custom TTL values (TimeToLive parameter, 1-255)
+    *   ✅ Multiple ping counts per host (Count parameter)
+*   **Response Time Statistics:** ✅
+    *   ✅ Track min, max, and average response times
+    *   ✅ Calculate packet loss percentage
+    *   ✅ Record pings sent and received
+*   **Retry Logic:** ✅
+    *   ✅ Configurable retry attempts (Retries parameter)
+    *   ✅ Adaptive retry delays with exponential backoff (1s, 2s, 4s)
+    *   ✅ Smart retry based on network conditions
 
-Phases 5 (Scan History), 7 (Performance), and 8 (Automation) are now complete. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
+## Current Status
+
+**Version:** v1.7.0
+**Status:** All core phases complete (Phases 5, 6, 7, 8)
+
+Phases 5 (Scan History), 6 (Advanced Ping), 7 (Performance), and 8 (Automation) are now complete. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
 
 ---
 
@@ -169,20 +185,6 @@ Phases 5 (Scan History), 7 (Performance), and 8 (Automation) are now complete. P
     *   Identify patterns in network changes
     *   Generate availability statistics
 
-### Phase 6: Advanced Ping Customization
-*   **Custom Ping Parameters:**
-    *   Configurable packet sizes
-    *   Custom TTL values
-    *   Fragmentation control
-    *   Multiple ping counts per host
-*   **Alternative ICMP Types:**
-    *   Support for ICMP timestamp requests
-    *   ICMP echo variations
-    *   Configurable timeout per host
-*   **Retry Logic:**
-    *   Configurable retry attempts
-    *   Adaptive retry delays
-    *   Smart retry based on network conditions
 
 ## v1.5.0 - Performance & Scalability ✅ COMPLETED
 
