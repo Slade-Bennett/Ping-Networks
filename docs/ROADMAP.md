@@ -152,12 +152,32 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ Interrupted scans export collected data
     *   ✅ All export formats supported (Excel, HTML, JSON, XML)
 
+## Completed Phases (v1.9.0)
+
+### Scan Management & Recovery Features ✅ COMPLETED
+*   **Checkpoint and Resume System:** ✅
+    *   ✅ Automatic checkpoint saving during scans (configurable interval)
+    *   ✅ Resume interrupted scans from checkpoint files
+    *   ✅ Full scan state preservation (results, parameters, progress)
+    *   ✅ Automatic parameter restoration from checkpoints
+    *   ✅ Prevents data loss on power failures or interruptions
+*   **Interactive Pause/Resume Controls:** ✅
+    *   ✅ Keyboard-based pause functionality ('P' key)
+    *   ✅ Resume from pause ('R' key)
+    *   ✅ Save checkpoint and exit ('S' key)
+    *   ✅ Quit without saving ('Q' key)
+    *   ✅ Works in interactive console sessions
+*   **Enhanced Robustness:** ✅
+    *   ✅ Fixed progress calculation for resumed scans
+    *   ✅ Graceful handling of non-interactive scenarios
+    *   ✅ Improved error messages and user feedback
+
 ## Current Status
 
-**Version:** v1.8.0
-**Status:** All core phases complete + enhanced features
+**Version:** v1.9.0
+**Status:** All core phases complete + checkpoint/resume system
 
-Phases 5 (Scan History), 6 (Advanced Ping), 7 (Performance), and 8 (Automation) are complete. Enhanced features from deferred Phase 5 and Phase 7 items have been implemented. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
+Phases 5-8 are complete. All high-value deferred features have been implemented including checkpoint/resume, pause/resume, alert thresholds, retention policies, and trend analysis. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
 
 ---
 
@@ -217,9 +237,9 @@ Phases 5 (Scan History), 6 (Advanced Ping), 7 (Performance), and 8 (Automation) 
     *   ✅ Replace PowerShell background jobs with runspaces (10-20x faster)
     *   ✅ Configurable thread pool size (-Throttle parameter)
     *   Dynamic thread allocation based on system resources (deferred)
-*   **Scan Management:** ✅ PARTIALLY COMPLETED
-    *   Resume interrupted scans from checkpoint (deferred to future version)
-    *   Pause/resume functionality (deferred to future version)
+*   **Scan Management:** ✅ COMPLETED
+    *   ✅ Resume interrupted scans from checkpoint (v1.9.0 - CheckpointPath, ResumeCheckpoint)
+    *   ✅ Pause/resume functionality (v1.9.0 - Interactive 'P'/'R' keyboard controls)
     *   ✅ Abort gracefully with partial results (v1.8.0 - Ctrl+C handling)
 *   **Resource Management:**
     *   ✅ Memory usage optimization for large networks

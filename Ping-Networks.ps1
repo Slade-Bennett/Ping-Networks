@@ -112,6 +112,18 @@
     (Optional) Only send alerts when new devices are detected. Ignores offline and recovered devices.
 .PARAMETER AlertOnOfflineOnly
     (Optional) Only send alerts when devices go offline. Ignores new and recovered devices.
+.PARAMETER CheckpointPath
+    (Optional) Directory path where checkpoint files will be saved during scanning.
+    Checkpoints allow resuming interrupted scans from the last saved state.
+    Example: -CheckpointPath "C:\ScanCheckpoints"
+.PARAMETER CheckpointInterval
+    (Optional) Save checkpoint after every N hosts scanned. Default is 50 hosts.
+    Lower values = more frequent saves (less data loss) but slightly slower scans.
+    Example: -CheckpointInterval 25 (save every 25 hosts)
+.PARAMETER ResumeCheckpoint
+    (Optional) Path to a checkpoint file to resume an interrupted scan from.
+    The scan will skip already-scanned hosts and continue with remaining networks.
+    Example: -ResumeCheckpoint "C:\ScanCheckpoints\Checkpoint_20251228_120000.json"
 .EXAMPLE
     .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
     # Basic usage with Excel file - generates Excel output in Documents folder by default
@@ -142,7 +154,7 @@
 #>
 [CmdletBinding(DefaultParameterSetName = 'Default')]
 param(
-    [Parameter(Mandatory = $true, ParameterSetName = 'Process')]
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [string]$InputPath,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
@@ -248,7 +260,16 @@ param(
     [switch]$AlertOnNewOnly,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
-    [switch]$AlertOnOfflineOnly
+    [switch]$AlertOnOfflineOnly,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$CheckpointPath,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [int]$CheckpointInterval = 50,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$ResumeCheckpoint
 )
 
 if ($PSCmdlet.ParameterSetName -eq 'Default') {
@@ -363,6 +384,121 @@ if ($CompareBaseline) {
     }
 }
 
+# Initialize checkpoint system
+$checkpointData = $null
+$resumingFromCheckpoint = $false
+
+if ($CheckpointPath) {
+    # Create checkpoint directory if it doesn't exist
+    if (-not (Test-Path -Path $CheckpointPath)) {
+        New-Item -Path $CheckpointPath -ItemType Directory -Force | Out-Null
+        Write-Verbose "Created checkpoint directory: $CheckpointPath"
+    }
+}
+
+# Validate parameters: either InputPath or ResumeCheckpoint must be provided
+if (-not $InputPath -and -not $ResumeCheckpoint) {
+    throw "Either -InputPath or -ResumeCheckpoint must be specified."
+}
+
+# Load checkpoint if resuming
+if ($ResumeCheckpoint) {
+    try {
+        if (-not (Test-Path -Path $ResumeCheckpoint)) {
+            Write-Warning "Checkpoint file not found: $ResumeCheckpoint. Starting fresh scan."
+        } else {
+            Write-Host "Resuming from checkpoint: $ResumeCheckpoint" -ForegroundColor Cyan
+            $checkpointJson = Get-Content -Path $ResumeCheckpoint -Raw -Encoding UTF8
+            $checkpointData = $checkpointJson | ConvertFrom-Json
+            $resumingFromCheckpoint = $true
+
+            Write-Verbose "Checkpoint loaded: $($checkpointData.CheckpointMetadata.TotalHostsScanned) hosts already scanned"
+            Write-Verbose "Progress: $($checkpointData.CheckpointMetadata.ProgressPercentage)% complete"
+
+            # Restore InputPath from checkpoint if not provided
+            if (-not $InputPath -and $checkpointData.CheckpointMetadata.ScanParameters.InputPath) {
+                $InputPath = $checkpointData.CheckpointMetadata.ScanParameters.InputPath
+                Write-Verbose "Restored InputPath from checkpoint: $InputPath"
+            }
+
+            # Restore other scan parameters from checkpoint if not explicitly provided
+            if (-not $PSBoundParameters.ContainsKey('Throttle') -and $checkpointData.CheckpointMetadata.ScanParameters.Throttle) {
+                $Throttle = $checkpointData.CheckpointMetadata.ScanParameters.Throttle
+            }
+            if (-not $PSBoundParameters.ContainsKey('MaxPings') -and $checkpointData.CheckpointMetadata.ScanParameters.MaxPings) {
+                $MaxPings = $checkpointData.CheckpointMetadata.ScanParameters.MaxPings
+            }
+            if (-not $PSBoundParameters.ContainsKey('Timeout') -and $checkpointData.CheckpointMetadata.ScanParameters.Timeout) {
+                $Timeout = $checkpointData.CheckpointMetadata.ScanParameters.Timeout
+            }
+            if (-not $PSBoundParameters.ContainsKey('Retries') -and $checkpointData.CheckpointMetadata.ScanParameters.Retries) {
+                $Retries = $checkpointData.CheckpointMetadata.ScanParameters.Retries
+            }
+            if (-not $PSBoundParameters.ContainsKey('Count') -and $checkpointData.CheckpointMetadata.ScanParameters.Count) {
+                $Count = $checkpointData.CheckpointMetadata.ScanParameters.Count
+            }
+            if (-not $PSBoundParameters.ContainsKey('BufferSize') -and $checkpointData.CheckpointMetadata.ScanParameters.BufferSize) {
+                $BufferSize = $checkpointData.CheckpointMetadata.ScanParameters.BufferSize
+            }
+            if (-not $PSBoundParameters.ContainsKey('TimeToLive') -and $checkpointData.CheckpointMetadata.ScanParameters.TimeToLive) {
+                $TimeToLive = $checkpointData.CheckpointMetadata.ScanParameters.TimeToLive
+            }
+        }
+    }
+    catch {
+        Write-Warning "Failed to load checkpoint file: $($_.Exception.Message). Starting fresh scan."
+        $checkpointData = $null
+        $resumingFromCheckpoint = $false
+    }
+}
+
+# Function to save checkpoint
+function Save-Checkpoint {
+    param(
+        [System.Collections.Generic.List[pscustomobject]]$AllResults,
+        [System.Collections.Generic.List[pscustomobject]]$SummaryData,
+        [array]$RemainingNetworks,
+        [int]$ProcessedNetworkCount,
+        [int]$TotalNetworkCount,
+        [hashtable]$ScanParameters
+    )
+
+    if (-not $CheckpointPath) {
+        return  # Checkpoints not enabled
+    }
+
+    try {
+        $checkpointTimestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        $checkpointFilename = "Checkpoint_$checkpointTimestamp.json"
+        $checkpointFilePath = Join-Path -Path $CheckpointPath -ChildPath $checkpointFilename
+
+        $progressPct = if ($TotalNetworkCount -gt 0) {
+            [math]::Round(($ProcessedNetworkCount / $TotalNetworkCount) * 100, 1)
+        } else { 0 }
+
+        $checkpointObj = [PSCustomObject]@{
+            CheckpointMetadata = @{
+                ScanStartTime = $scanStartTime.ToString("yyyy-MM-dd HH:mm:ss")
+                CheckpointTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                TotalNetworks = $TotalNetworkCount
+                ProcessedNetworks = $ProcessedNetworkCount
+                TotalHostsScanned = $AllResults.Count
+                ProgressPercentage = $progressPct
+                ScanParameters = $ScanParameters
+            }
+            CompletedResults = $AllResults
+            SummaryData = $SummaryData
+            RemainingNetworks = $RemainingNetworks
+        }
+
+        $checkpointObj | ConvertTo-Json -Depth 10 | Set-Content -Path $checkpointFilePath -Encoding UTF8
+        Write-Verbose "Checkpoint saved: $checkpointFilePath ($progressPct% complete, $($AllResults.Count) hosts)"
+    }
+    catch {
+        Write-Warning "Failed to save checkpoint: $($_.Exception.Message)"
+    }
+}
+
 #endregion
 
 #region MAIN PROCESSING
@@ -370,6 +506,7 @@ if ($CompareBaseline) {
 # Global variables for graceful abort handling
 $script:ScanInterrupted = $false
 $script:PartialResults = $false
+$script:ScanPaused = $false
 
 # Register Ctrl+C handler for graceful abort
 $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
@@ -443,15 +580,120 @@ try {
     $allResults = [System.Collections.Generic.List[pscustomobject]]::new()
     $summaryData = [System.Collections.Generic.List[pscustomobject]]::new()
 
+    # Resume from checkpoint if available
+    if ($resumingFromCheckpoint -and $checkpointData) {
+        Write-Host "Restoring scan state from checkpoint..." -ForegroundColor Cyan
+
+        # Restore completed results and summary data
+        if ($checkpointData.CompletedResults) {
+            foreach ($result in $checkpointData.CompletedResults) {
+                $allResults.Add($result)
+            }
+            Write-Verbose "Restored $($allResults.Count) completed scan results"
+        }
+
+        if ($checkpointData.SummaryData) {
+            foreach ($summary in $checkpointData.SummaryData) {
+                $summaryData.Add($summary)
+            }
+            Write-Verbose "Restored $($summaryData.Count) network summaries"
+        }
+
+        # Filter networks to only remaining networks
+        if ($checkpointData.RemainingNetworks -and $checkpointData.RemainingNetworks.Count -gt 0) {
+            $originalCount = $networks.Count
+            $networks = $checkpointData.RemainingNetworks
+            $processedCount = $originalCount - $networks.Count
+            Write-Host "Skipping $processedCount already-scanned network(s), continuing with $($networks.Count) remaining" -ForegroundColor Yellow
+        }
+    }
+
     $networkCount = $networks.Count
-    $networkIndex = 0
+    $networkIndex = if ($resumingFromCheckpoint) { $checkpointData.CheckpointMetadata.ProcessedNetworks } else { 0 }
+    $totalNetworkCount = if ($resumingFromCheckpoint) { $checkpointData.CheckpointMetadata.TotalNetworks } else { $networkCount }
 
     if ($networkCount -eq 0) {
-        throw "No networks found in input file. Please ensure the Excel file has data rows."
+        if ($resumingFromCheckpoint) {
+            Write-Host "Checkpoint scan was already complete. No remaining networks to scan." -ForegroundColor Green
+            $networkCount = $totalNetworkCount  # Use total count for report generation
+        } else {
+            throw "No networks found in input file. Please ensure the Excel file has data rows."
+        }
     }
+
+    # Store scan parameters for checkpoint
+    $scanParameters = @{
+        InputPath = $InputPath
+        Throttle = $Throttle
+        MaxPings = $MaxPings
+        Timeout = $Timeout
+        Retries = $Retries
+        Count = $Count
+        BufferSize = $BufferSize
+        TimeToLive = $TimeToLive
+    }
+
+    # Track hosts scanned since last checkpoint
+    $hostsSinceCheckpoint = 0
+
+    # Display interactive controls information
+    Write-Host "`n💡 TIP: Press 'P' at any time to pause the scan" -ForegroundColor Cyan
 
     foreach ($networkInput in $networks) {
         $networkIndex++
+
+        # Check for pause request (P key) - only in interactive console
+        try {
+            if ([Console]::KeyAvailable) {
+                $key = [Console]::ReadKey($true)
+                if ($key.Key -eq 'P') {
+                    $script:ScanPaused = $true
+                    Write-Host "`n`n⏸ SCAN PAUSED" -ForegroundColor Yellow
+                    Write-Host "Press 'R' to Resume, 'S' to Save checkpoint and quit, or 'Q' to Quit without saving" -ForegroundColor Cyan
+
+                    # Wait for resume, save, or quit command
+                    $waitingForCommand = $true
+                    while ($waitingForCommand) {
+                        if ([Console]::KeyAvailable) {
+                            $resumeKey = [Console]::ReadKey($true)
+                            switch ($resumeKey.Key) {
+                                'R' {
+                                    Write-Host "▶ Resuming scan...`n" -ForegroundColor Green
+                                    $script:ScanPaused = $false
+                                    $waitingForCommand = $false
+                                }
+                                'S' {
+                                    Write-Host "`nSaving checkpoint and exiting..." -ForegroundColor Yellow
+                                    if ($CheckpointPath) {
+                                        $remainingNetworksList = $networks[($networkIndex - 1)..$networks.Count]
+                                        Save-Checkpoint -AllResults $allResults `
+                                                       -SummaryData $summaryData `
+                                                       -RemainingNetworks $remainingNetworksList `
+                                                       -ProcessedNetworkCount ($networkIndex - 1) `
+                                                       -TotalNetworkCount $totalNetworkCount `
+                                                       -ScanParameters $scanParameters
+                                        Write-Host "Checkpoint saved successfully." -ForegroundColor Green
+                                    } else {
+                                        Write-Warning "CheckpointPath not specified. Cannot save checkpoint."
+                                    }
+                                    $script:ScanInterrupted = $true
+                                    throw "Scan paused and saved by user"
+                                }
+                                'Q' {
+                                    Write-Host "`nQuitting without saving..." -ForegroundColor Red
+                                    $script:ScanInterrupted = $true
+                                    throw "Scan cancelled by user"
+                                }
+                            }
+                        }
+                        Start-Sleep -Milliseconds 100
+                    }
+                }
+            }
+        }
+        catch {
+            # Console input not available (redirected or non-interactive) - skip pause functionality
+        }
 
         # Parse and normalize network input (supports CIDR, ranges, traditional format)
         $network = Parse-NetworkInput -NetworkInput $networkInput
@@ -469,11 +711,13 @@ try {
             "$($network.IP)"
         }
 
-        Write-Verbose "Processing network $networkIndex of $networkCount : $networkIdentifier (Format: $($network.Format))"
+        Write-Verbose "Processing network $networkIndex of $totalNetworkCount : $networkIdentifier (Format: $($network.Format))"
 
         # Display current network being scanned with enhanced details
-        $percentComplete = if ($networkCount -gt 0) { ($networkIndex / $networkCount) * 100 } else { 0 }
-        $networkStatus = "Network $networkIndex of $networkCount : $networkIdentifier"
+        $percentComplete = if ($totalNetworkCount -gt 0) { ($networkIndex / $totalNetworkCount) * 100 } else { 0 }
+        # Cap at 100% to avoid Write-Progress errors
+        if ($percentComplete -gt 100) { $percentComplete = 100 }
+        $networkStatus = "Network $networkIndex of $totalNetworkCount : $networkIdentifier"
         Write-Progress -Id 1 -Activity "Scanning Networks" -Status $networkStatus -PercentComplete $percentComplete
 
         # Get list of hosts to ping based on format
@@ -564,6 +808,35 @@ try {
             }
         }
         $allResults.AddRange($pingResultsProcessed)
+
+        # Track hosts for checkpoint interval
+        $hostsSinceCheckpoint += $pingResultsProcessed.Count
+
+        # Save checkpoint if enabled and interval reached
+        if ($CheckpointPath -and $hostsSinceCheckpoint -ge $CheckpointInterval) {
+            # Calculate remaining networks
+            $remainingNetworksList = $networks[($networkIndex)..$networks.Count]
+
+            Save-Checkpoint -AllResults $allResults `
+                           -SummaryData $summaryData `
+                           -RemainingNetworks $remainingNetworksList `
+                           -ProcessedNetworkCount $networkIndex `
+                           -TotalNetworkCount $totalNetworkCount `
+                           -ScanParameters $scanParameters
+
+            $hostsSinceCheckpoint = 0  # Reset counter
+        }
+    }
+
+    # Save final checkpoint before completing scan
+    if ($CheckpointPath) {
+        Write-Verbose "Saving final checkpoint..."
+        Save-Checkpoint -AllResults $allResults `
+                       -SummaryData $summaryData `
+                       -RemainingNetworks @() `
+                       -ProcessedNetworkCount $totalNetworkCount `
+                       -TotalNetworkCount $totalNetworkCount `
+                       -ScanParameters $scanParameters
     }
 
     # Clear network scanning progress bar

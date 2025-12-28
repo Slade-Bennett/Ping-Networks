@@ -8,6 +8,12 @@ Write-Host "========================================`n" -ForegroundColor Cyan
 
 $testScripts = @(
     @{
+        Name = "Checkpoint and Resume"
+        Script = "Test-CheckpointResume.ps1"
+        Description = "Tests checkpoint/resume system (v1.9.0)"
+        Duration = "~2 minutes"
+    },
+    @{
         Name = "Alert Thresholds"
         Script = "Test-AlertThresholds.ps1"
         Description = "Tests configurable alert threshold features"
@@ -52,7 +58,7 @@ Write-Host "`n========================================`n" -ForegroundColor Cyan
 
 # Menu selection
 Write-Host "Select test to run:" -ForegroundColor Yellow
-Write-Host "  1-5: Run individual test" -ForegroundColor White
+Write-Host "  1-6: Run individual test" -ForegroundColor White
 Write-Host "  A: Run ALL tests (automated only)" -ForegroundColor White
 Write-Host "  F: Run FULL suite (including manual tests)" -ForegroundColor White
 Write-Host "  Q: Quit" -ForegroundColor White
@@ -108,7 +114,7 @@ switch ($choice.ToUpper()) {
 
         Write-Host "`n✓ Full test suite completed!" -ForegroundColor Green
     }
-    {$_ -match '^[1-5]$'} {
+    {$_ -match '^[1-6]$'} {
         $index = [int]$choice - 1
         $test = $testScripts[$index]
 
