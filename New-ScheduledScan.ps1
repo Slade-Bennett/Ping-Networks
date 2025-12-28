@@ -34,6 +34,10 @@
 .PARAMETER HistoryPath
     Directory where scan history will be saved. Default: C:\NetworkScans\History
 
+.PARAMETER RetentionDays
+    Number of days to retain scan history files. Older files will be automatically deleted.
+    Default: 0 (no automatic cleanup)
+
 .PARAMETER CompareBaseline
     Path to baseline file for comparison. Optional.
 
@@ -63,6 +67,18 @@
 
 .PARAMETER EmailOnChanges
     Send email alert when baseline changes are detected.
+
+.PARAMETER MinChangesToAlert
+    Minimum number of total changes required to trigger email alert. Default: 1
+
+.PARAMETER MinChangePercentage
+    Minimum percentage of network changes required to trigger alert (0-100). Default: 0
+
+.PARAMETER AlertOnNewOnly
+    Only send alerts when new devices are detected.
+
+.PARAMETER AlertOnOfflineOnly
+    Only send alerts when devices go offline.
 
 .PARAMETER RunAsUser
     User account to run the task as. Default: Current user
@@ -114,6 +130,9 @@ param(
     [string]$HistoryPath = "C:\NetworkScans\History",
 
     [Parameter(Mandatory = $false)]
+    [int]$RetentionDays = 0,
+
+    [Parameter(Mandatory = $false)]
     [string]$CompareBaseline,
 
     [Parameter(Mandatory = $false)]
@@ -142,6 +161,19 @@ param(
 
     [Parameter(Mandatory = $false)]
     [switch]$EmailOnChanges,
+
+    [Parameter(Mandatory = $false)]
+    [int]$MinChangesToAlert = 1,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateRange(0, 100)]
+    [int]$MinChangePercentage = 0,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$AlertOnNewOnly,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$AlertOnOfflineOnly,
 
     [Parameter(Mandatory = $false)]
     [string]$RunAsUser = $env:USERNAME
@@ -193,6 +225,9 @@ $scriptArgs = @(
 
 if ($HistoryPath) {
     $scriptArgs += "-HistoryPath `"$HistoryPath`""
+    if ($RetentionDays -gt 0) {
+        $scriptArgs += "-RetentionDays $RetentionDays"
+    }
 }
 
 if ($CompareBaseline) {
@@ -209,7 +244,13 @@ if ($EmailTo -and $EmailFrom -and $SmtpServer) {
     if ($SmtpPassword) { $scriptArgs += "-SmtpPassword `"$SmtpPassword`"" }
     if ($UseSSL) { $scriptArgs += "-UseSSL" }
     if ($EmailOnCompletion) { $scriptArgs += "-EmailOnCompletion" }
-    if ($EmailOnChanges) { $scriptArgs += "-EmailOnChanges" }
+    if ($EmailOnChanges) {
+        $scriptArgs += "-EmailOnChanges"
+        if ($MinChangesToAlert -ne 1) { $scriptArgs += "-MinChangesToAlert $MinChangesToAlert" }
+        if ($MinChangePercentage -gt 0) { $scriptArgs += "-MinChangePercentage $MinChangePercentage" }
+        if ($AlertOnNewOnly) { $scriptArgs += "-AlertOnNewOnly" }
+        if ($AlertOnOfflineOnly) { $scriptArgs += "-AlertOnOfflineOnly" }
+    }
 }
 
 $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument ($scriptArgs -join " ")

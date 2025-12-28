@@ -128,12 +128,36 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ Adaptive retry delays with exponential backoff (1s, 2s, 4s)
     *   ✅ Smart retry based on network conditions
 
+## Completed Phases (v1.8.0)
+
+### Enhanced Features from Deferred Items ✅ COMPLETED
+*   **Configurable Alert Thresholds:** ✅
+    *   ✅ MinChangesToAlert - minimum number of changes to trigger alerts
+    *   ✅ MinChangePercentage - percentage-based alert thresholds
+    *   ✅ AlertOnNewOnly - security-focused new device alerts
+    *   ✅ AlertOnOfflineOnly - availability-focused offline alerts
+*   **Automated History Management:** ✅
+    *   ✅ RetentionDays parameter for automatic cleanup
+    *   ✅ Cleans scan history and change report files
+    *   ✅ Configurable retention periods (30, 60, 90+ days)
+*   **Trend Analysis & Availability Statistics:** ✅
+    *   ✅ GenerateTrendReport - comprehensive historical analysis
+    *   ✅ Uptime percentage tracking per host
+    *   ✅ Response time trends (min, max, avg over time)
+    *   ✅ First seen / last seen date tracking
+    *   ✅ Host categorization (Always/Mostly/Intermittent/Never Reachable)
+    *   ✅ Network-wide statistics and averages
+*   **Graceful Abort & Partial Results:** ✅
+    *   ✅ Ctrl+C handler saves partial results
+    *   ✅ Interrupted scans export collected data
+    *   ✅ All export formats supported (Excel, HTML, JSON, XML)
+
 ## Current Status
 
-**Version:** v1.7.0
-**Status:** All core phases complete (Phases 5, 6, 7, 8)
+**Version:** v1.8.0
+**Status:** All core phases complete + enhanced features
 
-Phases 5 (Scan History), 6 (Advanced Ping), 7 (Performance), and 8 (Automation) are now complete. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
+Phases 5 (Scan History), 6 (Advanced Ping), 7 (Performance), and 8 (Automation) are complete. Enhanced features from deferred Phase 5 and Phase 7 items have been implemented. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
 
 ---
 
@@ -174,16 +198,16 @@ Phases 5 (Scan History), 6 (Advanced Ping), 7 (Performance), and 8 (Automation) 
 *   **Historical Data Storage:** ✅
     *   ✅ Store scan results in timestamped JSON files (SQLite deferred)
     *   ✅ Maintain scan history for trend analysis
-    *   Configurable retention policies (deferred to future version)
+    *   ✅ Configurable retention policies (v1.8.0 - RetentionDays parameter)
 *   **Baseline Comparison:** ✅
     *   ✅ Compare current scan vs previous baseline
     *   ✅ Detect network changes (new devices, devices that went offline)
     *   ✅ Generate change reports highlighting differences
-    *   Alert on significant changes (deferred to Phase 8 - Scheduled Scanning)
-*   **Trend Analysis:** (Deferred to future version)
-    *   Track host availability over time
-    *   Identify patterns in network changes
-    *   Generate availability statistics
+    *   ✅ Alert on significant changes (v1.8.0 - configurable thresholds)
+*   **Trend Analysis:** ✅ COMPLETED (v1.8.0)
+    *   ✅ Track host availability over time
+    *   ✅ Identify patterns in network changes
+    *   ✅ Generate availability statistics
 
 
 ## v1.5.0 - Performance & Scalability ✅ COMPLETED
@@ -193,10 +217,10 @@ Phases 5 (Scan History), 6 (Advanced Ping), 7 (Performance), and 8 (Automation) 
     *   ✅ Replace PowerShell background jobs with runspaces (10-20x faster)
     *   ✅ Configurable thread pool size (-Throttle parameter)
     *   Dynamic thread allocation based on system resources (deferred)
-*   **Scan Management:** (Deferred to future version)
-    *   Resume interrupted scans from checkpoint
-    *   Pause/resume functionality
-    *   Abort gracefully with partial results
+*   **Scan Management:** ✅ PARTIALLY COMPLETED
+    *   Resume interrupted scans from checkpoint (deferred to future version)
+    *   Pause/resume functionality (deferred to future version)
+    *   ✅ Abort gracefully with partial results (v1.8.0 - Ctrl+C handling)
 *   **Resource Management:**
     *   ✅ Memory usage optimization for large networks
     *   CPU throttling options (deferred - use Throttle parameter instead)
@@ -210,7 +234,7 @@ Phases 5 (Scan History), 6 (Advanced Ping), 7 (Performance), and 8 (Automation) 
 *   **Notifications & Alerting:** ✅
     *   ✅ Email notifications on scan completion
     *   ✅ Alert on network changes (new/offline/recovered devices)
-    *   Configurable alert thresholds (deferred - currently alerts on any change)
+    *   ✅ Configurable alert thresholds (v1.8.0 - MinChangesToAlert, MinChangePercentage, AlertOnNewOnly, AlertOnOfflineOnly)
     *   ✅ SMTP configuration with authentication and SSL/TLS
 *   **Automated Reporting:** ✅
     *   ✅ Auto-generate and distribute reports via email

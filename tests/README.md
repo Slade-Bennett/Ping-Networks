@@ -1,193 +1,214 @@
-# Ping-Networks Testing Suite
+# Ping-Networks Test Suite
 
-Automated test suite for the Ping-Networks project. Run these tests before committing changes to ensure all features work correctly.
+This directory contains comprehensive test scripts for validating the v1.8.0 enhanced features of Ping-Networks.
 
 ## Quick Start
 
+### Run All Tests (Recommended)
 ```powershell
-# Run all tests
-.\tests\Run-Tests.ps1
-
-# Run with verbose output
-.\tests\Run-Tests.ps1 -Verbose
+.\Run-AllTests.ps1
 ```
 
-## Test Suites
+This master script provides an interactive menu to run individual tests or the entire suite.
 
-### 1. Core Functions (`Test-CoreFunctions.ps1`)
-Unit tests for fundamental functions:
-- `Parse-NetworkInput` - CIDR, Range, Traditional, Object parsing
-- `Get-UsableHosts` - Subnet calculation for /24, /28, /30
-- `Get-IPRange` - IP range expansion
-
-**What it tests:**
-- CIDR notation parsing (`10.0.0.0/24`)
-- IP range parsing (`192.168.1.1-192.168.1.5`)
-- Subnet mask calculations
-- Host enumeration accuracy
-
-### 2. Input Formats (`Test-InputFormats.ps1`)
-Integration tests for file input:
-- Excel (.xlsx) - Traditional format
-- Excel (.xlsx) - CIDR/Range format
-- CSV (.csv)
-- Text (.txt)
-
-**What it tests:**
-- File reading for each format
-- Successful network extraction
-- Output generation from each input type
-
-### 3. Output Formats (`Test-OutputFormats.ps1`)
-Integration tests for output generation:
-- Excel (.xlsx)
-- HTML (.html)
-- JSON (.json)
-- XML (.xml)
-- CSV (.csv)
-- Multiple formats simultaneously
-
-**What it tests:**
-- File creation for each output format
-- File size validation (files aren't empty)
-- Multiple format generation at once
-
-### 4. End-to-End (`Test-EndToEnd.ps1`)
-Full workflow tests:
-- CSV → HTML complete workflow
-- TXT → Excel + JSON complete workflow
-- CIDR notation: Parse → Scan → Report
-- IP range: Parse → Scan → Report
-- Backward compatibility with traditional format
-
-**What it tests:**
-- Complete execution from input to output
-- JSON structure validation
-- HTML content validation
-- Data accuracy across workflows
-
-## Test Results
-
-Tests return:
-- **Exit Code 0**: All tests passed
-- **Exit Code 1**: One or more tests failed
-
-Output includes:
-- Pass/Fail status for each test
-- Test count summary
-- Duration per suite
-- Detailed failure messages
-
-## Example Output
-
-```
-========================================
-  Ping-Networks Test Suite
-========================================
-
-Running: Core Functions
-========================================
-  [PASS] Parse-NetworkInput: CIDR notation
-  [PASS] Parse-NetworkInput: IP range
-  [PASS] Get-UsableHosts: /24 network
-  [PASS] All 9 tests passed
-
-Running: Input Formats
-========================================
-  [PASS] Excel input (.xlsx) - Traditional format
-  [PASS] CSV input (.csv)
-  [PASS] All 4 tests passed
-
-...
-
-========================================
-  Test Summary
-========================================
-
-Total Tests:  24
-Passed:       24
-Failed:       0
-Duration:     45.3 seconds
-
-ALL TESTS PASSED
-```
-
-## Running Individual Tests
-
+### Run Individual Tests
 ```powershell
-# Run only core function tests
-.\tests\Test-CoreFunctions.ps1
-
-# Run only output format tests
-.\tests\Test-OutputFormats.ps1
+.\Test-AlertThresholds.ps1    # Test alert threshold features
+.\Test-RetentionPolicy.ps1    # Test history retention cleanup
+.\Test-TrendAnalysis.ps1      # Test trend analysis and statistics
+.\Test-GracefulAbort.ps1      # Test Ctrl+C handling (manual)
+.\Test-IntegrationAll.ps1     # Comprehensive integration test
 ```
 
-## Pre-Commit Workflow
+## Test Descriptions
 
-**Recommended workflow before committing:**
+### 1. Test-AlertThresholds.ps1
+**Purpose:** Validates configurable alert threshold features
 
-```powershell
-# 1. Run all tests
-.\tests\Run-Tests.ps1
+**What it tests:**
+- `MinChangesToAlert` - minimum number of changes to trigger alerts
+- `MinChangePercentage` - percentage-based alert thresholds
+- Alert threshold logic and verbose output
 
-# 2. If all pass, commit changes
-git add .
-git commit -m "Your commit message"
+**Duration:** ~2 minutes
 
-# 3. Push to remote
-git push
-```
+**Expected Results:**
+- Baseline scan created successfully
+- Alert thresholds properly prevent/allow email alerts
+- Verbose output shows "Skipping email alert" messages when below threshold
 
-## Test Configuration
+---
 
-Tests use:
-- **MaxPings = 2-5**: Fast execution (pings only first few hosts)
-- **Test Output Directory**: `tests/test-output/` (auto-cleaned)
-- **Sample Data**: Uses files from `sample-data/` directory
+### 2. Test-RetentionPolicy.ps1
+**Purpose:** Validates automatic cleanup of old scan history files
+
+**What it tests:**
+- `RetentionDays` parameter functionality
+- Automatic deletion of files older than retention period
+- Both ScanHistory and ChangeReport file cleanup
+
+**Duration:** ~1 minute
+
+**Expected Results:**
+- Creates fake old files (10, 20, 30, 40, 50 days old)
+- Runs scan with 25-day retention
+- Deletes 5 files (those older than 25 days)
+- No files older than retention period remain
+
+**Success Criteria:**
+- ✓ Exactly 5 files deleted
+- ✓ All remaining files within retention period
+
+---
+
+### 3. Test-TrendAnalysis.ps1
+**Purpose:** Validates trend reporting and availability statistics
+
+**What it tests:**
+- `GenerateTrendReport` functionality
+- Historical data analysis across multiple scans
+- Uptime percentage calculations
+- Response time statistics
+- Host categorization (Always/Mostly/Intermittent/Never Reachable)
+
+**Duration:** ~3 minutes
+
+**Expected Results:**
+- Creates 5 baseline scans with intervals
+- Generates comprehensive trend report
+- Report contains valid metadata, summary, and host trends
+- Uptime percentages are valid (0-100%)
+- Category counts sum to total unique hosts
+
+**Success Criteria:**
+- ✓ Trend report JSON file created
+- ✓ All validation checks pass (4/4)
+
+---
+
+### 4. Test-GracefulAbort.ps1
+**Purpose:** Validates Ctrl+C handling and partial result saving
+
+**What it tests:**
+- Graceful abort functionality
+- Partial results preservation
+- All output formats generated on interrupt
+
+**Duration:** ~1 minute + manual intervention
+
+**Manual Steps Required:**
+1. Test starts a network scan
+2. Wait for progress to show (several hosts scanned)
+3. Press **Ctrl+C** to interrupt
+4. Verify partial results were saved
+
+**Expected Results:**
+- Scan can be interrupted with Ctrl+C
+- Excel, HTML, and JSON files are generated
+- Partial results contain scanned host data
+
+**Success Criteria:**
+- ✓ All output formats created (Excel, HTML, JSON)
+- ✓ JSON contains Results array with host data
+
+**Note:** This is a **MANUAL** test requiring user intervention.
+
+---
+
+### 5. Test-IntegrationAll.ps1
+**Purpose:** Comprehensive integration test of all v1.8.0 features
+
+**What it tests:**
+- Complete workflow of all enhanced features
+- Feature interactions and compatibility
+- Multiple scans with history building
+- Retention policy + trend analysis + alert thresholds
+- All output format generation
+
+**Duration:** ~5 minutes
+
+**Test Phases:**
+1. **Phase 1:** Build scan history (3 scans)
+2. **Phase 2:** Test retention policy with fake old files
+3. **Phase 3:** Generate and validate trend analysis
+4. **Phase 4:** Test alert thresholds (MinChangesToAlert, MinChangePercentage)
+5. **Phase 5:** Verify all output formats
+
+**Expected Results:**
+- 10-12 individual test checks
+- High success rate (90%+)
+- All features working together correctly
+
+**Success Criteria:**
+- ✓ All 10+ validation checks pass
+- ✓ 100% or near-100% success rate
+
+---
+
+## Test Artifacts
+
+All tests create temporary files in: `C:\Temp\PingNetworksTest`
+
+Tests offer cleanup at completion. If you choose not to cleanup, you can:
+- Review generated reports
+- Inspect JSON/XML output structure
+- Verify Excel formatting
+- Check HTML report rendering
+
+## Requirements
+
+- PowerShell 5.0 or later
+- Microsoft Excel installed (for Excel output tests)
+- Network connectivity (tests use sample-data/NetworkData.xlsx)
+- ~100 MB free disk space for test artifacts
 
 ## Troubleshooting
 
-**Tests failing after code changes?**
-1. Check error messages in test output
-2. Run individual test suites to isolate the issue
-3. Use `-Verbose` flag for detailed debugging
-
-**Excel tests failing?**
-- Ensure Microsoft Excel is installed
-- Check Excel COM object permissions
-
-**Slow test execution?**
-- Tests are optimized with MaxPings to run quickly
-- Full suite should complete in under 60 seconds
-
-## Adding New Tests
-
-To add a new test:
-
-1. Edit the appropriate test file (`Test-*.ps1`)
-2. Use the `Test-Function` or `Test-EndToEnd` helper
-3. Follow existing test patterns
-4. Run `Run-Tests.ps1` to verify
-
-Example:
+### "Input file not found"
+Ensure you're running tests from the project root directory:
 ```powershell
-Test-Function "My new test" {
-    # Your test logic here
-    $result = SomeFunction -Parameter "value"
-    ($result -eq "expected")  # Return true/false
-}
+cd "C:\Users\Slade\Documents\Visual Studio 2022\Ping-Networks"
+.\tests\Run-AllTests.ps1
 ```
 
-## Continuous Integration
+### Excel COM errors
+- Ensure Excel is installed
+- Close any open Excel instances
+- Run PowerShell as Administrator
 
-Test suite is designed to work with CI/CD pipelines:
-- Returns proper exit codes
-- Outputs parseable results
-- Cleans up after itself
+### Test failures
+1. Check verbose output for error details
+2. Review test artifacts in `C:\Temp\PingNetworksTest`
+3. Ensure sample-data/NetworkData.xlsx exists
+4. Verify network connectivity for ping operations
 
-Example GitHub Actions:
-```yaml
-- name: Run Tests
-  run: |
-    powershell -File tests/Run-Tests.ps1
-```
+## Test Development
+
+### Adding New Tests
+1. Create `Test-FeatureName.ps1` in this directory
+2. Follow existing test structure:
+   - Clear header with test purpose
+   - Setup test environment
+   - Run feature with validation
+   - Check results and report pass/fail
+   - Offer cleanup
+3. Add to `Run-AllTests.ps1` menu
+
+### Test Best Practices
+- Use `C:\Temp\PingNetworksTest` for artifacts
+- Always offer cleanup option
+- Provide clear pass/fail indicators (✓/✗)
+- Include verbose output for debugging
+- Document manual intervention requirements
+
+## Version History
+
+### v1.8.0 (2025-12-28)
+- Initial test suite creation
+- 5 comprehensive test scripts
+- Master test runner
+- Tests for: Alert Thresholds, Retention Policy, Trend Analysis, Graceful Abort, Full Integration
+
+---
+
+For questions or issues, please refer to the main project README or ROADMAP.

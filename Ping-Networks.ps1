@@ -50,6 +50,16 @@
 .PARAMETER HistoryPath
     (Optional) Directory path where scan history will be saved as timestamped JSON files.
     If not specified, no history is saved. Example: "C:\ScanHistory"
+.PARAMETER RetentionDays
+    (Optional) Number of days to retain scan history files. Older files will be automatically deleted.
+    Default is 0 (no automatic cleanup). Example: -RetentionDays 30 (keep last 30 days of history)
+.PARAMETER GenerateTrendReport
+    (Optional) Generate a comprehensive trend analysis report from all scan history files.
+    Analyzes host availability patterns, uptime statistics, and response time trends over time.
+    Requires HistoryPath to be specified with existing history files.
+.PARAMETER TrendDays
+    (Optional) Number of days of history to include in trend analysis. Default is 30 days.
+    Example: -TrendDays 90 (analyze last 90 days of scan history)
 .PARAMETER CompareBaseline
     (Optional) Path to a previous scan result file (JSON) to compare against current scan.
     Generates a change detection report showing new devices, offline devices, and status changes.
@@ -92,6 +102,16 @@
     (Optional) Send email notification when scan completes with summary and attached reports.
 .PARAMETER EmailOnChanges
     (Optional) Send email alert when baseline comparison detects network changes (new/offline/recovered devices).
+.PARAMETER MinChangesToAlert
+    (Optional) Minimum number of total changes required to trigger email alert. Default is 1 (alert on any change).
+    Example: -MinChangesToAlert 5 (only alert if 5 or more devices changed)
+.PARAMETER MinChangePercentage
+    (Optional) Minimum percentage of network changes required to trigger alert (0-100). Default is 0 (no threshold).
+    Example: -MinChangePercentage 10 (only alert if 10% or more of the network changed)
+.PARAMETER AlertOnNewOnly
+    (Optional) Only send alerts when new devices are detected. Ignores offline and recovered devices.
+.PARAMETER AlertOnOfflineOnly
+    (Optional) Only send alerts when devices go offline. Ignores new and recovered devices.
 .EXAMPLE
     .\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
     # Basic usage with Excel file - generates Excel output in Documents folder by default
@@ -156,6 +176,15 @@ param(
     [string]$HistoryPath,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [int]$RetentionDays = 0,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$GenerateTrendReport,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [int]$TrendDays = 30,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
     [string]$CompareBaseline,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
@@ -206,7 +235,20 @@ param(
     [switch]$EmailOnCompletion,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
-    [switch]$EmailOnChanges
+    [switch]$EmailOnChanges,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [int]$MinChangesToAlert = 1,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [ValidateRange(0, 100)]
+    [int]$MinChangePercentage = 0,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$AlertOnNewOnly,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$AlertOnOfflineOnly
 )
 
 if ($PSCmdlet.ParameterSetName -eq 'Default') {
@@ -221,9 +263,9 @@ worksheet for each network and a summary worksheet.
 PARAMETERS:
 -InputPath         (Required) The path to the input file containing network data.
                    Supported formats:
-                   • Excel (.xlsx): "Network" column with CIDR/Range, or IP/Subnet Mask/CIDR columns
-                   • CSV (.csv): Same as Excel with header row
-                   • Text (.txt): One network per line (CIDR or Range format)
+                   * Excel (.xlsx): "Network" column with CIDR/Range, or IP/Subnet Mask/CIDR columns
+                   * CSV (.csv): Same as Excel with header row
+                   * Text (.txt): One network per line (CIDR or Range format)
 -OutputDirectory   (Optional) The directory where output files will be saved.
                    Defaults to the user's Documents folder.
                    All files use timestamped filenames (e.g., PingResults_20251224_235900.xlsx)
@@ -324,6 +366,26 @@ if ($CompareBaseline) {
 #endregion
 
 #region MAIN PROCESSING
+
+# Global variables for graceful abort handling
+$script:ScanInterrupted = $false
+$script:PartialResults = $false
+
+# Register Ctrl+C handler for graceful abort
+$null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
+    if ($script:ScanInterrupted) {
+        Write-Host "`n`nScan was interrupted. Partial results have been saved." -ForegroundColor Yellow
+    }
+}
+
+# Trap handler for unexpected termination
+trap {
+    $script:ScanInterrupted = $true
+    Write-Warning "Scan interrupted: $_"
+    Write-Host "`nAttempting to save partial results..." -ForegroundColor Yellow
+    $script:PartialResults = $true
+    continue
+}
 
 $excelApp = $null
 $inputWorkbook = $null
@@ -606,6 +668,18 @@ try {
 
     #region EXPORT RESULTS
 
+    # Notify user about scan status
+    if ($script:ScanInterrupted) {
+        Write-Host "`n========================================" -ForegroundColor Yellow
+        Write-Host "  SCAN INTERRUPTED - SAVING PARTIAL RESULTS" -ForegroundColor Yellow
+        Write-Host "========================================" -ForegroundColor Yellow
+        Write-Host "Scanned: $($allResults.Count) hosts" -ForegroundColor White
+        Write-Host "Saving available results...`n" -ForegroundColor White
+    }
+    else {
+        Write-Host "`nGenerating output files..." -ForegroundColor Cyan
+    }
+
     if ($allResults.Count -gt 0) {
         if ($OutputPath) {
             try {
@@ -756,11 +830,232 @@ try {
                 $historyFilePath = Join-Path -Path $HistoryPath -ChildPath $historyFilename
                 $historyData | ConvertTo-Json -Depth 10 | Set-Content -Path $historyFilePath -Encoding UTF8
                 Write-Host "Successfully saved scan history to: $historyFilePath" -ForegroundColor Green
+
+                # Apply retention policy if specified
+                if ($RetentionDays -gt 0) {
+                    Write-Verbose "Applying retention policy: keeping last $RetentionDays days of history"
+                    $cutoffDate = (Get-Date).AddDays(-$RetentionDays)
+
+                    # Find and delete old scan history files
+                    $oldHistoryFiles = Get-ChildItem -Path $HistoryPath -Filter "ScanHistory_*.json" |
+                                       Where-Object { $_.LastWriteTime -lt $cutoffDate }
+
+                    if ($oldHistoryFiles) {
+                        $deletedCount = 0
+                        foreach ($file in $oldHistoryFiles) {
+                            try {
+                                Remove-Item -Path $file.FullName -Force
+                                Write-Verbose "Deleted old history file: $($file.Name)"
+                                $deletedCount++
+                            }
+                            catch {
+                                Write-Warning "Failed to delete old history file $($file.Name): $($_.Exception.Message)"
+                            }
+                        }
+                        Write-Host "Retention policy applied: deleted $deletedCount old history file(s)" -ForegroundColor Yellow
+                    }
+
+                    # Find and delete old change report files
+                    $oldChangeReports = Get-ChildItem -Path $HistoryPath -Filter "ChangeReport_*.json" |
+                                        Where-Object { $_.LastWriteTime -lt $cutoffDate }
+
+                    if ($oldChangeReports) {
+                        $deletedCount = 0
+                        foreach ($file in $oldChangeReports) {
+                            try {
+                                Remove-Item -Path $file.FullName -Force
+                                Write-Verbose "Deleted old change report: $($file.Name)"
+                                $deletedCount++
+                            }
+                            catch {
+                                Write-Warning "Failed to delete old change report $($file.Name): $($_.Exception.Message)"
+                            }
+                        }
+                        if ($deletedCount -gt 0) {
+                            Write-Host "Retention policy applied: deleted $deletedCount old change report(s)" -ForegroundColor Yellow
+                        }
+                    }
+                }
             }
             catch {
                 Write-Warning "Failed to save scan history: $($_.Exception.Message)"
             }
         }
+
+        #region TREND ANALYSIS
+        $trendReport = $null
+        if ($GenerateTrendReport -and $HistoryPath) {
+            try {
+                Write-Host "`nGenerating trend analysis report..." -ForegroundColor Cyan
+                Write-Verbose "Analyzing scan history from: $HistoryPath"
+
+                # Ensure history directory exists
+                if (-not (Test-Path -Path $HistoryPath)) {
+                    Write-Warning "History path does not exist: $HistoryPath. Cannot generate trend report."
+                }
+                else {
+                    # Calculate cutoff date for trend analysis
+                    $trendCutoffDate = (Get-Date).AddDays(-$TrendDays)
+
+                    # Load all history files within the trend period
+                    $historyFiles = Get-ChildItem -Path $HistoryPath -Filter "ScanHistory_*.json" |
+                                    Where-Object { $_.LastWriteTime -ge $trendCutoffDate } |
+                                    Sort-Object LastWriteTime
+
+                    if (-not $historyFiles -or $historyFiles.Count -lt 2) {
+                        Write-Warning "Insufficient history data for trend analysis. Found $($historyFiles.Count) scan(s), need at least 2."
+                    }
+                    else {
+                        Write-Verbose "Found $($historyFiles.Count) scan history files for trend analysis"
+
+                        # Load and parse all history data
+                        $allScans = @()
+                        foreach ($file in $historyFiles) {
+                            try {
+                                $scanData = Get-Content -Path $file.FullName -Raw | ConvertFrom-Json
+                                $allScans += [PSCustomObject]@{
+                                    ScanDate = [DateTime]::Parse($scanData.ScanMetadata.ScanDate)
+                                    Results = $scanData.Results
+                                }
+                            }
+                            catch {
+                                Write-Warning "Failed to load history file $($file.Name): $($_.Exception.Message)"
+                            }
+                        }
+
+                        if ($allScans.Count -ge 2) {
+                            # Build host availability tracking
+                            $hostTracking = @{}
+
+                            foreach ($scan in $allScans) {
+                                foreach ($result in $scan.Results) {
+                                    $hostKey = $result.Host
+
+                                    if (-not $hostTracking.ContainsKey($hostKey)) {
+                                        $hostTracking[$hostKey] = @{
+                                            Host = $hostKey
+                                            Network = $result.Network
+                                            FirstSeen = $scan.ScanDate
+                                            LastSeen = $scan.ScanDate
+                                            TotalScans = 0
+                                            ReachableCount = 0
+                                            UnreachableCount = 0
+                                            ResponseTimes = @()
+                                            LastStatus = $null
+                                            LastHostname = $null
+                                        }
+                                    }
+
+                                    $tracking = $hostTracking[$hostKey]
+                                    $tracking.TotalScans++
+                                    $tracking.LastSeen = $scan.ScanDate
+                                    $tracking.LastStatus = $result.Status
+
+                                    if ($result.Status -eq "Reachable") {
+                                        $tracking.ReachableCount++
+                                        if ($result.Hostname -and $result.Hostname -ne "N/A") {
+                                            $tracking.LastHostname = $result.Hostname
+                                        }
+                                        if ($result.ResponseTime -and $result.ResponseTime -gt 0) {
+                                            $tracking.ResponseTimes += $result.ResponseTime
+                                        }
+                                    }
+                                    else {
+                                        $tracking.UnreachableCount++
+                                    }
+                                }
+                            }
+
+                            # Calculate statistics for each host
+                            $trendData = @()
+                            foreach ($hostKey in $hostTracking.Keys) {
+                                $tracking = $hostTracking[$hostKey]
+
+                                $uptimePercentage = if ($tracking.TotalScans -gt 0) {
+                                    [math]::Round(($tracking.ReachableCount / $tracking.TotalScans) * 100, 2)
+                                } else { 0 }
+
+                                $avgResponseTime = if ($tracking.ResponseTimes.Count -gt 0) {
+                                    [math]::Round(($tracking.ResponseTimes | Measure-Object -Average).Average, 2)
+                                } else { 0 }
+
+                                $minResponseTime = if ($tracking.ResponseTimes.Count -gt 0) {
+                                    ($tracking.ResponseTimes | Measure-Object -Minimum).Minimum
+                                } else { 0 }
+
+                                $maxResponseTime = if ($tracking.ResponseTimes.Count -gt 0) {
+                                    ($tracking.ResponseTimes | Measure-Object -Maximum).Maximum
+                                } else { 0 }
+
+                                $trendData += [PSCustomObject]@{
+                                    Host = $tracking.Host
+                                    Network = $tracking.Network
+                                    Hostname = if ($tracking.LastHostname) { $tracking.LastHostname } else { "N/A" }
+                                    FirstSeen = $tracking.FirstSeen.ToString("yyyy-MM-dd HH:mm:ss")
+                                    LastSeen = $tracking.LastSeen.ToString("yyyy-MM-dd HH:mm:ss")
+                                    CurrentStatus = $tracking.LastStatus
+                                    TotalScans = $tracking.TotalScans
+                                    ReachableCount = $tracking.ReachableCount
+                                    UnreachableCount = $tracking.UnreachableCount
+                                    UptimePercentage = $uptimePercentage
+                                    AvgResponseTime = $avgResponseTime
+                                    MinResponseTime = $minResponseTime
+                                    MaxResponseTime = $maxResponseTime
+                                }
+                            }
+
+                            # Sort by uptime percentage (descending) then by host
+                            $trendData = $trendData | Sort-Object @{Expression={$_.UptimePercentage}; Descending=$true}, Host
+
+                            # Create trend report
+                            $trendReport = [PSCustomObject]@{
+                                ReportMetadata = @{
+                                    GeneratedDate = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+                                    TrendPeriodDays = $TrendDays
+                                    AnalysisStartDate = $allScans[0].ScanDate.ToString("yyyy-MM-dd HH:mm:ss")
+                                    AnalysisEndDate = $allScans[-1].ScanDate.ToString("yyyy-MM-dd HH:mm:ss")
+                                    TotalScansAnalyzed = $allScans.Count
+                                    UniqueHostsTracked = $trendData.Count
+                                }
+                                Summary = @{
+                                    AlwaysReachable = ($trendData | Where-Object { $_.UptimePercentage -eq 100 }).Count
+                                    MostlyReachable = ($trendData | Where-Object { $_.UptimePercentage -ge 80 -and $_.UptimePercentage -lt 100 }).Count
+                                    Intermittent = ($trendData | Where-Object { $_.UptimePercentage -gt 0 -and $_.UptimePercentage -lt 80 }).Count
+                                    AlwaysUnreachable = ($trendData | Where-Object { $_.UptimePercentage -eq 0 }).Count
+                                    AvgUptimePercentage = [math]::Round(($trendData | Measure-Object -Property UptimePercentage -Average).Average, 2)
+                                }
+                                HostTrends = $trendData
+                            }
+
+                            # Export trend report
+                            $trendReportFilename = "TrendReport_$timestamp.json"
+                            $trendReportPath = Join-Path -Path $OutputDirectory -ChildPath $trendReportFilename
+                            $trendReport | ConvertTo-Json -Depth 10 | Set-Content -Path $trendReportPath -Encoding UTF8
+                            Write-Host "Successfully generated trend analysis report: $trendReportPath" -ForegroundColor Green
+
+                            # Also save to history directory
+                            $historyTrendReportPath = Join-Path -Path $HistoryPath -ChildPath $trendReportFilename
+                            $trendReport | ConvertTo-Json -Depth 10 | Set-Content -Path $historyTrendReportPath -Encoding UTF8
+                            Write-Verbose "Trend report also saved to history: $historyTrendReportPath"
+
+                            # Display summary
+                            Write-Host "`nTrend Analysis Summary:" -ForegroundColor Cyan
+                            Write-Host "  Analysis Period: $TrendDays days ($($allScans.Count) scans)" -ForegroundColor White
+                            Write-Host "  Unique Hosts Tracked: $($trendData.Count)" -ForegroundColor White
+                            Write-Host "  Always Reachable (100%): $($trendReport.Summary.AlwaysReachable)" -ForegroundColor Green
+                            Write-Host "  Mostly Reachable (80-99%): $($trendReport.Summary.MostlyReachable)" -ForegroundColor Yellow
+                            Write-Host "  Intermittent (1-79%): $($trendReport.Summary.Intermittent)" -ForegroundColor Magenta
+                            Write-Host "  Always Unreachable (0%): $($trendReport.Summary.AlwaysUnreachable)" -ForegroundColor Red
+                            Write-Host "  Average Uptime: $($trendReport.Summary.AvgUptimePercentage)%" -ForegroundColor White
+                        }
+                    }
+                }
+            }
+            catch {
+                Write-Warning "Failed to generate trend analysis: $($_.Exception.Message)"
+            }
+        }
+        #endregion
 
         # Export change report if baseline comparison was performed
         if ($changeReport) {
@@ -827,16 +1122,50 @@ try {
 
             # Check if we should send change alert
             if ($EmailOnChanges -and $changeReport) {
-                $shouldSendEmail = $true
-                if (-not $emailSubject) {
-                    $emailSubject = "Network Changes Detected - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-                } else {
-                    $emailSubject = "Network Scan & Changes Detected - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-                }
-
                 $newCount = $changeReport.Summary.NewDevices
                 $offlineCount = $changeReport.Summary.OfflineDevices
                 $recoveredCount = $changeReport.Summary.RecoveredDevices
+                $totalChanges = $newCount + $offlineCount + $recoveredCount
+
+                # Apply alert thresholds
+                $meetsThreshold = $true
+
+                # Check minimum changes threshold
+                if ($totalChanges -lt $MinChangesToAlert) {
+                    $meetsThreshold = $false
+                    Write-Verbose "Changes ($totalChanges) below minimum threshold ($MinChangesToAlert). Skipping email alert."
+                }
+
+                # Check percentage threshold if specified
+                if ($meetsThreshold -and $MinChangePercentage -gt 0) {
+                    $totalHosts = $allResults.Count
+                    $changePercentage = if ($totalHosts -gt 0) { ($totalChanges / $totalHosts) * 100 } else { 0 }
+                    if ($changePercentage -lt $MinChangePercentage) {
+                        $meetsThreshold = $false
+                        Write-Verbose "Change percentage ($([math]::Round($changePercentage, 2))%) below minimum threshold ($MinChangePercentage%). Skipping email alert."
+                    }
+                }
+
+                # Check alert type filters
+                if ($meetsThreshold -and $AlertOnNewOnly -and $newCount -eq 0) {
+                    $meetsThreshold = $false
+                    Write-Verbose "AlertOnNewOnly specified but no new devices detected. Skipping email alert."
+                }
+
+                if ($meetsThreshold -and $AlertOnOfflineOnly -and $offlineCount -eq 0) {
+                    $meetsThreshold = $false
+                    Write-Verbose "AlertOnOfflineOnly specified but no offline devices detected. Skipping email alert."
+                }
+
+                # Send alert if thresholds are met
+                if ($meetsThreshold) {
+                    $shouldSendEmail = $true
+                    if (-not $emailSubject) {
+                        $emailSubject = "Network Changes Detected - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+                    } else {
+                        $emailSubject = "Network Scan & Changes Detected - $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+                    }
+                }
 
                 $changesColor = if (($newCount + $offlineCount) -gt 0) { "orange" } else { "green" }
 
