@@ -152,6 +152,25 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ Interrupted scans export collected data
     *   ✅ All export formats supported (Excel, HTML, JSON, XML)
 
+## Completed Phases (v2.0)
+
+### Phase 9a: WPF GUI (User Interface) ✅ COMPLETED
+*   **Windows Presentation Foundation GUI:** ✅
+    *   ✅ WPF-based graphical user interface (Ping-Networks-GUI.ps1)
+    *   ✅ Point-and-click network configuration
+    *   ✅ Browse buttons for file selection (input files and output directory)
+    *   ✅ Checkboxes for output format selection (Excel, HTML, JSON, XML, CSV)
+    *   ✅ Text input fields for all scan parameters (Throttle, MaxPings, Timeout, etc.)
+    *   ✅ Advanced options panel (collapsible) for BufferSize, TTL, History, Checkpoints
+    *   ✅ Real-time progress visualization with progress bar
+    *   ✅ Status text updates during scan execution
+    *   ✅ Results DataGrid for displaying scan results
+    *   ✅ Start/Stop/Clear/Exit control buttons
+    *   ✅ Input validation for required fields
+    *   ✅ Background job execution (non-blocking UI)
+    *   ✅ Error handling and user notifications (MessageBox dialogs)
+    *   ✅ Responsive layout and professional styling
+
 ## Completed Phases (v1.9.0)
 
 ### Scan Management & Recovery Features ✅ COMPLETED
@@ -172,12 +191,61 @@ This roadmap outlines the planned development and future direction for the Ping-
     *   ✅ Graceful handling of non-interactive scenarios
     *   ✅ Improved error messages and user feedback
 
+## Completed Phases (v2.1)
+
+### Phase 11: Enterprise Integration - Database Backends ✅ COMPLETED
+*   **Database Export Module (DatabaseUtils.psm1):** ✅
+    *   ✅ Test-DatabaseConnection function for connectivity validation
+    *   ✅ Initialize-DatabaseSchema function for automatic table creation
+    *   ✅ Export-DatabaseResults function for batch data insertion
+    *   ✅ Complete inline documentation and help text
+*   **SQL Server Support:** ✅
+    *   ✅ Native System.Data.SqlClient integration
+    *   ✅ Parameterized queries to prevent SQL injection
+    *   ✅ Support for Windows Authentication (Integrated Security)
+    *   ✅ Support for SQL Authentication (Username/Password)
+    *   ✅ Compatible with SQL Server Express, Standard, Enterprise, and LocalDB
+*   **Database Schema Design:** ✅
+    *   ✅ Scans table for scan metadata (ScanId, date/time, duration, summary stats)
+    *   ✅ ScanResults table for individual host results with foreign key relationship
+    *   ✅ Proper indexes on ScanId, Network, and Status columns
+    *   ✅ Normalized design with appropriate data types
+*   **Main Script Integration:** ✅
+    *   ✅ DatabaseExport parameter (switch)
+    *   ✅ DatabaseConnectionString parameter
+    *   ✅ DatabaseType parameter (SQLServer/MySQL/PostgreSQL)
+    *   ✅ InitializeDatabase parameter for first-time schema setup
+    *   ✅ Automatic connection testing before export
+    *   ✅ Comprehensive error handling and user feedback
+*   **GUI Integration:** ✅
+    *   ✅ Database export controls in advanced options panel
+    *   ✅ Checkbox for "Export to Database"
+    *   ✅ Checkbox for "Initialize DB Schema"
+    *   ✅ ComboBox for database type selection
+    *   ✅ TextBox for connection string input
+    *   ✅ Dynamic enable/disable of dependent controls
+*   **Batch Processing:** ✅
+    *   ✅ Efficient batch insertion (100 records per batch)
+    *   ✅ Progress reporting during database export
+    *   ✅ Proper handling of NULL values (DBNull::Value)
+*   **Testing and Documentation:** ✅
+    *   ✅ Comprehensive Test-DatabaseExport.ps1 script
+    *   ✅ Updated README.md with database features and examples
+    *   ✅ Updated ROADMAP.md to reflect completion
+    *   ✅ Connection string examples for various SQL Server configurations
+
+**Future Enhancements (Deferred):**
+*   MySQL/PostgreSQL support (architecture ready, requires MySQL.Data.dll and Npgsql.dll)
+*   Query helper functions for data retrieval and reporting
+*   Real-time database synchronization
+*   Data warehouse integration
+
 ## Current Status
 
-**Version:** v1.9.0
-**Status:** All core phases complete + checkpoint/resume system
+**Version:** v2.1
+**Status:** All core phases complete + GUI interface + Database export
 
-Phases 5-8 are complete. All high-value deferred features have been implemented including checkpoint/resume, pause/resume, alert thresholds, retention policies, and trend analysis. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
+Phases 5-8 are complete. Phase 9a (WPF GUI) is complete. Phase 11 (Enterprise Integration - Database Backends) is complete. All high-value features have been implemented including checkpoint/resume, pause/resume, alert thresholds, retention policies, trend analysis, graphical user interface, and database export. Port scanning and advanced discovery features (Phases 3-4) remain deferred as they are not immediate priorities.
 
 ---
 
@@ -261,20 +329,20 @@ Phases 5-8 are complete. All high-value deferred features have been implemented 
     *   ✅ Scheduled report delivery via email
     *   Report templates and customization (deferred - uses default HTML template)
 
-## Long-Term Vision (v2.0+)
+## Long-Term Vision (v2.2+)
 
-### Phase 9: User Interface Development
-*   **PowerShell GUI:**
-    *   Windows Forms or WPF-based GUI
-    *   Point-and-click network configuration
-    *   Real-time scan progress visualization
-    *   Interactive results browsing
+### Phase 9b: Web-Based Dashboard (Next)
+**Status:** Planned for v2.2
+
 *   **Web-Based Dashboard:**
     *   PowerShell Universal Dashboard integration
     *   Browser-based interface for remote access
-    *   Real-time scan monitoring
-    *   Historical data visualization
+    *   Real-time scan monitoring dashboard
+    *   Historical data visualization with charts
     *   RESTful API for programmatic access
+    *   Multi-user support with authentication
+    *   Responsive design for mobile/tablet access
+    *   WebSocket support for live updates
 
 ### Phase 10: Network Visualization & Mapping
 *   **Visual Network Topology:**
@@ -287,19 +355,19 @@ Phases 5-8 are complete. All high-value deferred features have been implemented 
     *   Service availability dashboards
     *   Historical trend graphs
 
-### Phase 11: Enterprise Integration
-*   **Monitoring Platform Integration:**
+### Phase 11: Enterprise Integration (Partially Complete)
+*   **Database Backends:** ✅ COMPLETED (v2.1)
+    *   ✅ Direct export to SQL Server (MySQL/PostgreSQL architecture ready)
+    *   Real-time database synchronization (deferred)
+    *   Data warehouse integration (deferred)
+*   **Monitoring Platform Integration:** (Planned)
     *   Export to Nagios, PRTG, Zabbix formats
     *   Direct API integration with monitoring systems
     *   Alert forwarding to existing alerting platforms
-*   **IT Automation Platforms:**
+*   **IT Automation Platforms:** (Planned)
     *   Ansible playbook integration
     *   Puppet module development
     *   Microsoft SCCM integration
-*   **Database Backends:**
-    *   Direct export to SQL Server, MySQL, PostgreSQL
-    *   Real-time database synchronization
-    *   Data warehouse integration
 
 ### Phase 12: Advanced Features
 *   **Distributed Scanning:**

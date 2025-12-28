@@ -269,7 +269,20 @@ param(
     [int]$CheckpointInterval = 50,
 
     [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
-    [string]$ResumeCheckpoint
+    [string]$ResumeCheckpoint,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [string]$DatabaseConnectionString,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [ValidateSet('SQLServer', 'MySQL', 'PostgreSQL')]
+    [string]$DatabaseType = 'SQLServer',
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$DatabaseExport,
+
+    [Parameter(Mandatory = $false, ParameterSetName = 'Process')]
+    [switch]$InitializeDatabase
 )
 
 if ($PSCmdlet.ParameterSetName -eq 'Default') {
@@ -329,6 +342,7 @@ if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) {
 Import-Module (Join-Path $PSScriptRoot "modules\ExcelUtils.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\Ping-Networks.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\ReportUtils.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "modules\DatabaseUtils.psm1") -Force
 
 # Track scan timing for metadata
 $scanStartTime = Get-Date
@@ -1352,6 +1366,59 @@ try {
                 Write-Warning "Failed to export change report: $($_.Exception.Message)"
             }
         }
+
+        #region DATABASE EXPORT
+
+        # Export to database if configured
+        if ($DatabaseExport -and $DatabaseConnectionString) {
+            try {
+                Write-Host "`nExporting scan results to database..." -ForegroundColor Cyan
+
+                # Initialize database schema if requested
+                if ($InitializeDatabase) {
+                    Write-Verbose "Initializing database schema"
+                    Initialize-DatabaseSchema -ConnectionString $DatabaseConnectionString -DatabaseType $DatabaseType
+                }
+
+                # Test database connection
+                $connectionTest = Test-DatabaseConnection -ConnectionString $DatabaseConnectionString -DatabaseType $DatabaseType
+                if (-not $connectionTest) {
+                    Write-Warning "Database connection test failed. Skipping database export."
+                }
+                else {
+                    # Calculate scan duration
+                    $scanEndTime = Get-Date
+                    $scanDuration = $scanEndTime - $scanStartTime
+                    $durationFormatted = "{0:D2}:{1:D2}:{2:D2}" -f $scanDuration.Hours, $scanDuration.Minutes, $scanDuration.Seconds
+
+                    # Prepare scan metadata for database
+                    $dbMetadata = @{
+                        ScanDate = $scanStartTime
+                        ScanStartTime = $scanStartTime
+                        ScanEndTime = $scanEndTime
+                        Duration = $durationFormatted
+                        NetworkCount = $networkCount
+                        InputFile = $InputPath
+                        OutputDirectory = $OutputDirectory
+                        Throttle = $Throttle
+                    }
+
+                    # Export to database
+                    $scanId = Export-DatabaseResults -Results $allResults `
+                                                     -ScanMetadata $dbMetadata `
+                                                     -ConnectionString $DatabaseConnectionString `
+                                                     -DatabaseType $DatabaseType
+
+                    Write-Host "Database export completed successfully (ScanId: $scanId)" -ForegroundColor Green
+                }
+            }
+            catch {
+                Write-Warning "Database export failed: $($_.Exception.Message)"
+                Write-Verbose $_.Exception.StackTrace
+            }
+        }
+
+        #endregion
 
         #region EMAIL NOTIFICATIONS
 
