@@ -5,9 +5,6 @@
     # Version number of this module.
     ModuleVersion = '1.0.0'
 
-    # Supported PSEditions
-    PSEditions = @('Desktop')
-
     # Author of this module
     Author = 'Slade Bennett'
 

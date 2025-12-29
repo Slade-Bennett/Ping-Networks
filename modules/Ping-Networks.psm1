@@ -646,76 +646,130 @@ function Parse-NetworkInput {
     try {
         # Case 1: String input - could be CIDR notation or IP range
         if ($NetworkInput -is [string]) {
-            # CIDR Notation: "10.0.0.0/24"
-            if ($NetworkInput -match '^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/(\d{1,2})$') {
-                $ip = $matches[1]
-                $cidr = [int]$matches[2]
-                $subnetMask = ConvertFrom-CIDR -CIDR $cidr
-
-                return [PSCustomObject]@{
-                    IP = $ip
-                    SubnetMask = $subnetMask
-                    CIDR = $cidr
-                    Format = "CIDR"
-                    Range = $null
-                }
-            }
-            # IP Range: "10.0.0.1-10.0.0.50"
-            elseif ($NetworkInput -match '^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})-(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$') {
-                $startIP = $matches[1]
-                $endIP = $matches[2]
-
-                # For ranges, we don't use subnet calculation - we'll handle this specially
-                return [PSCustomObject]@{
-                    IP = $startIP
-                    SubnetMask = $null
-                    CIDR = $null
-                    Format = "Range"
-                    Range = @($startIP, $endIP)
-                }
-            }
-            else {
-                Write-Error "Invalid network format: '$NetworkInput'. Expected CIDR (e.g., '10.0.0.0/24') or Range (e.g., '10.0.0.1-10.0.0.50')"
-                return $null
-            }
+            return Parse-StringNetwork -NetworkString $NetworkInput
         }
-        # Case 2: Object input - traditional format with IP, Subnet Mask, CIDR
-        else {
-            # Check if we have a Network property (new simplified format)
-            if ($NetworkInput.PSObject.Properties['Network'] -and $NetworkInput.Network) {
-                # Parse the Network property as a string (CIDR or Range)
-                return Parse-NetworkInput -NetworkInput $NetworkInput.Network
-            }
-            # Traditional format
-            elseif ($NetworkInput.IP -and ($NetworkInput.'Subnet Mask' -or $NetworkInput.CIDR)) {
-                # If CIDR is provided but no Subnet Mask, calculate it
-                if ($NetworkInput.CIDR -and -not $NetworkInput.'Subnet Mask') {
-                    $subnetMask = ConvertFrom-CIDR -CIDR ([int]$NetworkInput.CIDR)
-                } else {
-                    $subnetMask = $NetworkInput.'Subnet Mask'
-                }
 
-                # If Subnet Mask is provided but no CIDR, we'll still work with it
-                # (CIDR is optional for display purposes)
-                $cidr = if ($NetworkInput.CIDR) { [int]$NetworkInput.CIDR } else { $null }
-
-                return [PSCustomObject]@{
-                    IP = $NetworkInput.IP
-                    SubnetMask = $subnetMask
-                    CIDR = $cidr
-                    Format = "Traditional"
-                    Range = $null
-                }
-            }
-            else {
-                Write-Error "Invalid network object. Must have either: (1) 'Network' property with CIDR notation, (2) 'IP' and 'Subnet Mask'/'CIDR' properties, or (3) CIDR string format"
-                return $null
-            }
+        # Case 2: Object with 'Network' property (simplified format)
+        if ($NetworkInput.PSObject.Properties['Network'] -and $NetworkInput.Network) {
+            # Recursively parse the Network property value
+            return Parse-NetworkInput -NetworkInput $NetworkInput.Network
         }
+
+        # Case 3: Traditional object format with IP and Subnet Mask/CIDR
+        if ($NetworkInput.IP -and ($NetworkInput.'Subnet Mask' -or $NetworkInput.CIDR)) {
+            return Parse-TraditionalNetwork -NetworkObject $NetworkInput
+        }
+
+        # Invalid format
+        Write-Error "Invalid network object. Must have either: (1) 'Network' property with CIDR/Range notation, (2) 'IP' and 'Subnet Mask'/'CIDR' properties, or (3) CIDR/Range string format"
+        return $null
     }
     catch {
-        Write-Error "Failed to parse network input: $_"
+        Write-Error "Failed to parse network input '$NetworkInput': $_"
         return $null
+    }
+}
+
+<#
+.SYNOPSIS
+    Internal helper to parse string-based network input (CIDR or Range).
+.DESCRIPTION
+    Parses network strings in CIDR notation (e.g., "10.0.0.0/24") or
+    IP range notation (e.g., "10.0.0.1-10.0.0.50").
+#>
+function Parse-StringNetwork {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$NetworkString
+    )
+
+    # CIDR Notation: "10.0.0.0/24"
+    if ($NetworkString -match '^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/(\d{1,2})$') {
+        $ip = $matches[1]
+        $cidr = [int]$matches[2]
+
+        # Validate CIDR range (0-32)
+        if ($cidr -lt 0 -or $cidr -gt 32) {
+            Write-Error "Invalid CIDR value '$cidr'. Must be between 0 and 32."
+            return $null
+        }
+
+        $subnetMask = ConvertFrom-CIDR -CIDR $cidr
+
+        return [PSCustomObject]@{
+            IP = $ip
+            SubnetMask = $subnetMask
+            CIDR = $cidr
+            Format = "CIDR"
+            Range = $null
+        }
+    }
+
+    # IP Range: "10.0.0.1-10.0.0.50"
+    if ($NetworkString -match '^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})-(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$') {
+        $startIP = $matches[1]
+        $endIP = $matches[2]
+
+        # Validate IP addresses
+        try {
+            [System.Net.IPAddress]::Parse($startIP) | Out-Null
+            [System.Net.IPAddress]::Parse($endIP) | Out-Null
+        }
+        catch {
+            Write-Error "Invalid IP address in range '$NetworkString': $_"
+            return $null
+        }
+
+        return [PSCustomObject]@{
+            IP = $startIP
+            SubnetMask = $null
+            CIDR = $null
+            Format = "Range"
+            Range = @($startIP, $endIP)
+        }
+    }
+
+    # Invalid format
+    Write-Error "Invalid network string format: '$NetworkString'. Expected CIDR notation (e.g., '10.0.0.0/24') or IP range (e.g., '10.0.0.1-10.0.0.50')"
+    return $null
+}
+
+<#
+.SYNOPSIS
+    Internal helper to parse traditional network object format.
+.DESCRIPTION
+    Parses network objects with IP, Subnet Mask, and/or CIDR properties.
+#>
+function Parse-TraditionalNetwork {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        $NetworkObject
+    )
+
+    # Calculate subnet mask from CIDR if not provided
+    if ($NetworkObject.CIDR -and -not $NetworkObject.'Subnet Mask') {
+        $cidrValue = [int]$NetworkObject.CIDR
+        if ($cidrValue -lt 0 -or $cidrValue -gt 32) {
+            Write-Error "Invalid CIDR value '$cidrValue'. Must be between 0 and 32."
+            return $null
+        }
+        $subnetMask = ConvertFrom-CIDR -CIDR $cidrValue
+    }
+    else {
+        $subnetMask = $NetworkObject.'Subnet Mask'
+    }
+
+    # Extract CIDR if available (optional for display)
+    $cidr = if ($NetworkObject.CIDR) { [int]$NetworkObject.CIDR } else { $null }
+
+    return [PSCustomObject]@{
+        IP = $NetworkObject.IP
+        SubnetMask = $subnetMask
+        CIDR = $cidr
+        Format = "Traditional"
+        Range = $null
     }
 }
 

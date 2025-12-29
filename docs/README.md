@@ -34,6 +34,7 @@ Ping-Networks is a PowerShell module that pings all hosts in specified networks 
 *   **Enhanced Progress Reporting:** Real-time scan statistics including ETA, scan rate (hosts/sec), and network progress.
 *   **Checkpoint and Resume System:** Save scan progress periodically and resume interrupted scans from checkpoints. Interactive pause/resume controls with keyboard commands.
 *   **Graphical User Interface (v2.0):** Windows WPF GUI for point-and-click network scanning with visual progress monitoring and results display.
+*   **Web-Based Dashboard (NEW in v2.2):** Browser-based interface for remote access, multi-user monitoring, historical data visualization, and RESTful API.
 *   **Modular Architecture:** Separated into reusable modules (subnet calculation, ping logic, Excel utilities, database export, report generation).
 
 ## Requirements
@@ -59,6 +60,35 @@ The GUI provides:
 - Real-time progress visualization
 - Results grid with scan data
 - Start/Stop/Clear controls
+
+### Web Dashboard Mode (v2.2)
+
+For browser-based remote access and multi-user monitoring, launch the web dashboard:
+
+```powershell
+# Basic usage (no authentication)
+.\Start-Dashboard.ps1
+
+# With authentication
+.\Start-Dashboard.ps1 -EnableAuth -Username "admin" -Password "secure123"
+
+# With database integration
+.\Start-Dashboard.ps1 -DatabaseConnectionString "Server=localhost;Database=PingNetworks;Integrated Security=True"
+```
+
+Then open your browser to: **http://localhost:8080**
+
+The Web Dashboard provides:
+- Real-time scan monitoring with live progress updates
+- Start scans directly from the browser
+- Interactive charts and historical data visualization
+- RESTful API for programmatic access (see `/api/docs`)
+- Database integration for persistent historical data
+- Responsive design for desktop, tablet, and mobile
+- Optional authentication for secure access
+- Multi-user support
+
+See `dashboard/README.md` for complete documentation.
 
 ### Command Line Mode
 
@@ -466,6 +496,12 @@ Ping-Networks/
 │   ├── ExcelUtils.psm1       # Excel COM automation utilities
 │   ├── ReportUtils.psm1      # Report generation (HTML, JSON, XML)
 │   └── DatabaseUtils.psm1    # Database export (SQL Server, MySQL, PostgreSQL)
+├── dashboard/
+│   ├── static/
+│   │   ├── dashboard.css     # Dashboard stylesheet
+│   │   ├── dashboard.js      # Dashboard page JavaScript
+│   │   └── history.js        # History page JavaScript
+│   └── README.md             # Dashboard documentation
 ├── sample-data/
 │   └── NetworkData.xlsx      # Sample Excel input file
 ├── tests/
@@ -474,7 +510,8 @@ Ping-Networks/
 │   ├── README.md             # This file
 │   └── ROADMAP.md            # Development roadmap
 ├── Ping-Networks.ps1         # Main entry point script
-└── Ping-Networks-GUI.ps1     # WPF graphical user interface
+├── Ping-Networks-GUI.ps1     # WPF graphical user interface
+└── Start-Dashboard.ps1       # Web dashboard server
 ```
 
 ### Key Functions
@@ -493,7 +530,20 @@ Ping-Networks/
 
 ## Recent Improvements
 
-### Version 2.1 (Latest)
+### Version 2.2 (Latest)
+*   **Web-Based Dashboard:**
+    *   **Pode Web Framework:** Lightweight PowerShell web server for browser-based access
+    *   **Remote Monitoring:** Access scans from any device with a web browser
+    *   **Real-Time Updates:** Live scan progress with automatic polling every 2 seconds
+    *   **Interactive Charts:** Chart.js visualizations for scan history and trends
+    *   **RESTful API:** Complete REST API for programmatic access (/api/status, /api/scan/start, /api/history)
+    *   **Authentication:** Optional form-based authentication with session management
+    *   **Multi-User Support:** Multiple users can monitor scans simultaneously
+    *   **Database Integration:** Automatic querying from SQL Server for historical data
+    *   **Responsive Design:** Mobile-friendly interface for tablets and smartphones
+    *   **API Documentation:** Interactive API docs at /api/docs endpoint
+
+### Version 2.1
 *   **Database Export:**
     *   **DatabaseUtils Module:** Complete database integration module for enterprise data persistence
     *   **SQL Server Support:** Native support for Microsoft SQL Server (Express, Standard, Enterprise)

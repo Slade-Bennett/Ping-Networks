@@ -13,6 +13,7 @@ This master script provides an interactive menu to run individual tests or the e
 
 ### Run Individual Tests
 ```powershell
+.\Test-ParseNetworkInput.ps1  # Test network input parsing (unit test)
 .\Test-AlertThresholds.ps1    # Test alert threshold features
 .\Test-RetentionPolicy.ps1    # Test history retention cleanup
 .\Test-TrendAnalysis.ps1      # Test trend analysis and statistics
@@ -21,6 +22,34 @@ This master script provides an interactive menu to run individual tests or the e
 ```
 
 ## Test Descriptions
+
+### 0. Test-ParseNetworkInput.ps1 (UNIT TEST)
+**Purpose:** Validates the refactored `Parse-NetworkInput` function for correctness
+
+**What it tests:**
+- CIDR notation parsing (e.g., "10.0.0.0/24", "192.168.1.0/28")
+- IP range parsing (e.g., "10.0.0.1-10.0.0.50")
+- Traditional object format with IP + Subnet Mask
+- Traditional object format with IP + CIDR
+- Simplified object format with Network property (CIDR and Range)
+- Edge cases (/8, /32 CIDR)
+- Subnet mask calculation validation
+- Input validation and error handling
+
+**Duration:** ~5 seconds
+
+**Expected Results:**
+- All 10 test cases pass
+- CIDR values correctly converted to subnet masks
+- IP ranges properly parsed
+- All input formats normalized to standard output
+
+**Success Criteria:**
+- ✓ 10/10 tests pass
+- ✓ All network formats supported
+- ✓ Edge cases handled correctly
+
+---
 
 ### 1. Test-AlertThresholds.ps1
 **Purpose:** Validates configurable alert threshold features
@@ -202,6 +231,12 @@ cd "C:\Users\Slade\Documents\Visual Studio 2022\Ping-Networks"
 - Document manual intervention requirements
 
 ## Version History
+
+### v2.2.1 (2025-12-29)
+- Added unit test for Parse-NetworkInput refactoring
+- Improved code readability with helper function extraction
+- Added comprehensive input validation tests
+- 10 test cases covering all network input formats
 
 ### v1.8.0 (2025-12-28)
 - Initial test suite creation
