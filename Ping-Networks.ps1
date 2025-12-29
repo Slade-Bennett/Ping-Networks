@@ -710,7 +710,7 @@ try {
         }
 
         # Parse and normalize network input (supports CIDR, ranges, traditional format)
-        $network = Parse-NetworkInput -NetworkInput $networkInput
+        $network = ConvertFrom-NetworkInput -NetworkInput $networkInput
         if (-not $network) {
             Write-Warning "Skipping network entry $networkIndex due to invalid format."
             continue
@@ -793,14 +793,14 @@ try {
             $filteredHosts
         }
 
-        # Validate $hostsToPing before calling Start-Ping
+        # Validate $hostsToPing before calling Invoke-HostPing
         if (-not $hostsToPing -or $hostsToPing.Count -eq 0) {
             Write-Warning "No hosts selected for ping in network '$networkIdentifier'. Skipping ping."
             continue
         }
 
         # Ping all hosts in this network with advanced parameters
-        $pingResults = Start-Ping -Hosts $hostsToPing -Throttle $Throttle -Count $Count -BufferSize $BufferSize -TimeToLive $TimeToLive -Timeout $Timeout -Retries $Retries
+        $pingResults = Invoke-HostPing -Hosts $hostsToPing -Throttle $Throttle -Count $Count -BufferSize $BufferSize -TimeToLive $TimeToLive -Timeout $Timeout -Retries $Retries
         
         $reachableCount = ($pingResults | Where-Object { $_.Reachable }).Count
         $unreachableCount = $hostsToPing.Count - $reachableCount

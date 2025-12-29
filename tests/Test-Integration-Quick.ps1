@@ -9,7 +9,7 @@ Import-Module $modulePath -Force -Verbose:$false
 
 # Test 1: Parse CIDR notation
 Write-Host "Test 1: Parsing CIDR notation '10.0.0.0/30'..." -ForegroundColor Yellow
-$network = Parse-NetworkInput -NetworkInput "10.0.0.0/30"
+$network = ConvertFrom-NetworkInput -NetworkInput "10.0.0.0/30"
 
 if ($network) {
     Write-Host "  PASS - Network parsed successfully" -ForegroundColor Green
@@ -36,7 +36,7 @@ if ($hosts -and $hosts.Count -eq 2) {
 
 # Test 3: Perform ping scan
 Write-Host "`nTest 3: Performing ping scan on $($hosts.Count) hosts..." -ForegroundColor Yellow
-$results = Start-Ping -Hosts $hosts -Throttle 10 -Timeout 1 -Count 1 -Verbose:$false
+$results = Invoke-HostPing -Hosts $hosts -Throttle 10 -Timeout 1 -Count 1 -Verbose:$false
 
 if ($results -and $results.Count -eq $hosts.Count) {
     Write-Host "  PASS - Scan completed successfully" -ForegroundColor Green
@@ -53,7 +53,7 @@ if ($results -and $results.Count -eq $hosts.Count) {
 
 # Test 4: Test IP Range parsing
 Write-Host "`nTest 4: Parsing IP Range '192.168.1.1-192.168.1.5'..." -ForegroundColor Yellow
-$rangeNetwork = Parse-NetworkInput -NetworkInput "192.168.1.1-192.168.1.5"
+$rangeNetwork = ConvertFrom-NetworkInput -NetworkInput "192.168.1.1-192.168.1.5"
 
 if ($rangeNetwork -and $rangeNetwork.Format -eq "Range") {
     Write-Host "  PASS - IP Range parsed successfully" -ForegroundColor Green

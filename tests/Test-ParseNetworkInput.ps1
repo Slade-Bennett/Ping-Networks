@@ -1,8 +1,8 @@
 # Test-ParseNetworkInput.ps1
-# Comprehensive tests for Parse-NetworkInput refactoring
+# Comprehensive tests for ConvertFrom-NetworkInput refactoring
 
 Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "Testing Parse-NetworkInput Refactoring" -ForegroundColor Cyan
+Write-Host "Testing ConvertFrom-NetworkInput Refactoring" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Cyan
 
 # Import the module
@@ -38,21 +38,21 @@ function Test-NetworkParsing {
 
 # Test 1: CIDR Notation
 Test-NetworkParsing -Description "CIDR notation: 10.0.0.0/24" -Test {
-    $result = Parse-NetworkInput -NetworkInput "10.0.0.0/24"
+    $result = ConvertFrom-NetworkInput -NetworkInput "10.0.0.0/24"
     if ($result.Format -eq "CIDR" -and $result.CIDR -eq 24) { return $result }
     return $null
 }
 
 # Test 2: CIDR with /28
 Test-NetworkParsing -Description "CIDR notation: 192.168.1.0/28" -Test {
-    $result = Parse-NetworkInput -NetworkInput "192.168.1.0/28"
+    $result = ConvertFrom-NetworkInput -NetworkInput "192.168.1.0/28"
     if ($result.Format -eq "CIDR" -and $result.CIDR -eq 28) { return $result }
     return $null
 }
 
 # Test 3: IP Range
 Test-NetworkParsing -Description "IP Range: 10.0.0.1-10.0.0.50" -Test {
-    $result = Parse-NetworkInput -NetworkInput "10.0.0.1-10.0.0.50"
+    $result = ConvertFrom-NetworkInput -NetworkInput "10.0.0.1-10.0.0.50"
     if ($result.Format -eq "Range") { return $result }
     return $null
 }
@@ -60,7 +60,7 @@ Test-NetworkParsing -Description "IP Range: 10.0.0.1-10.0.0.50" -Test {
 # Test 4: Traditional object
 Test-NetworkParsing -Description "Traditional object: IP + Subnet Mask" -Test {
     $input = [PSCustomObject]@{ IP = "172.16.0.0"; 'Subnet Mask' = "255.255.255.0" }
-    $result = Parse-NetworkInput -NetworkInput $input
+    $result = ConvertFrom-NetworkInput -NetworkInput $input
     if ($result.Format -eq "Traditional") { return $result }
     return $null
 }
@@ -68,7 +68,7 @@ Test-NetworkParsing -Description "Traditional object: IP + Subnet Mask" -Test {
 # Test 5: Traditional with CIDR
 Test-NetworkParsing -Description "Traditional object: IP + CIDR" -Test {
     $input = [PSCustomObject]@{ IP = "172.16.0.0"; CIDR = "24" }
-    $result = Parse-NetworkInput -NetworkInput $input
+    $result = ConvertFrom-NetworkInput -NetworkInput $input
     if ($result.Format -eq "Traditional") { return $result }
     return $null
 }
@@ -76,7 +76,7 @@ Test-NetworkParsing -Description "Traditional object: IP + CIDR" -Test {
 # Test 6: Simplified Network property (CIDR)
 Test-NetworkParsing -Description "Simplified object: Network property (CIDR)" -Test {
     $input = [PSCustomObject]@{ Network = "10.0.0.0/24" }
-    $result = Parse-NetworkInput -NetworkInput $input
+    $result = ConvertFrom-NetworkInput -NetworkInput $input
     if ($result.Format -eq "CIDR") { return $result }
     return $null
 }
@@ -84,28 +84,28 @@ Test-NetworkParsing -Description "Simplified object: Network property (CIDR)" -T
 # Test 7: Simplified Network property (Range)
 Test-NetworkParsing -Description "Simplified object: Network property (Range)" -Test {
     $input = [PSCustomObject]@{ Network = "192.168.1.1-192.168.1.100" }
-    $result = Parse-NetworkInput -NetworkInput $input
+    $result = ConvertFrom-NetworkInput -NetworkInput $input
     if ($result.Format -eq "Range") { return $result }
     return $null
 }
 
 # Test 8: Edge case /32
 Test-NetworkParsing -Description "Edge case: /32 CIDR" -Test {
-    $result = Parse-NetworkInput -NetworkInput "10.0.0.1/32"
+    $result = ConvertFrom-NetworkInput -NetworkInput "10.0.0.1/32"
     if ($result.Format -eq "CIDR" -and $result.CIDR -eq 32) { return $result }
     return $null
 }
 
 # Test 9: Edge case /8
 Test-NetworkParsing -Description "Edge case: /8 CIDR" -Test {
-    $result = Parse-NetworkInput -NetworkInput "10.0.0.0/8"
+    $result = ConvertFrom-NetworkInput -NetworkInput "10.0.0.0/8"
     if ($result.Format -eq "CIDR" -and $result.CIDR -eq 8) { return $result }
     return $null
 }
 
 # Test 10: Validate subnet mask calculation
 Test-NetworkParsing -Description "Subnet mask validation: /24 = 255.255.255.0" -Test {
-    $result = Parse-NetworkInput -NetworkInput "10.0.0.0/24"
+    $result = ConvertFrom-NetworkInput -NetworkInput "10.0.0.0/24"
     if ($result.SubnetMask -eq "255.255.255.0") { return $result }
     return $null
 }

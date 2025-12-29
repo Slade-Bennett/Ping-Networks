@@ -17,7 +17,9 @@
     # Functions to export from this module
     FunctionsToExport = @(
         'Get-UsableHosts',
-        'Start-Ping'
+        'Invoke-HostPing',
+        'ConvertFrom-NetworkInput',
+        'Get-IPRange'
     )
 
     # Cmdlets to export from this module

@@ -34,40 +34,40 @@ function Test-Function {
     }
 }
 
-# Test Parse-NetworkInput with CIDR notation
-Test-Function "Parse-NetworkInput: CIDR notation" {
-    $result = Parse-NetworkInput -NetworkInput "10.0.0.0/24"
+# Test ConvertFrom-NetworkInput with CIDR notation
+Test-Function "ConvertFrom-NetworkInput: CIDR notation" {
+    $result = ConvertFrom-NetworkInput -NetworkInput "10.0.0.0/24"
     ($result.IP -eq "10.0.0.0") -and
     ($result.SubnetMask -eq "255.255.255.0") -and
     ($result.CIDR -eq 24) -and
     ($result.Format -eq "CIDR")
 }
 
-# Test Parse-NetworkInput with IP range
-Test-Function "Parse-NetworkInput: IP range" {
-    $result = Parse-NetworkInput -NetworkInput "192.168.1.1-192.168.1.5"
+# Test ConvertFrom-NetworkInput with IP range
+Test-Function "ConvertFrom-NetworkInput: IP range" {
+    $result = ConvertFrom-NetworkInput -NetworkInput "192.168.1.1-192.168.1.5"
     ($result.IP -eq "192.168.1.1") -and
     ($result.Format -eq "Range") -and
     ($result.Range[0] -eq "192.168.1.1") -and
     ($result.Range[1] -eq "192.168.1.5")
 }
 
-# Test Parse-NetworkInput with Network property
-Test-Function "Parse-NetworkInput: Object with Network property" {
+# Test ConvertFrom-NetworkInput with Network property
+Test-Function "ConvertFrom-NetworkInput: Object with Network property" {
     $obj = [PSCustomObject]@{ Network = "172.16.0.0/28" }
-    $result = Parse-NetworkInput -NetworkInput $obj
+    $result = ConvertFrom-NetworkInput -NetworkInput $obj
     ($result.IP -eq "172.16.0.0") -and
     ($result.CIDR -eq 28)
 }
 
-# Test Parse-NetworkInput with traditional format
-Test-Function "Parse-NetworkInput: Traditional format" {
+# Test ConvertFrom-NetworkInput with traditional format
+Test-Function "ConvertFrom-NetworkInput: Traditional format" {
     $obj = [PSCustomObject]@{
         IP = "10.0.0.0"
         'Subnet Mask' = "255.255.255.0"
         CIDR = 24
     }
-    $result = Parse-NetworkInput -NetworkInput $obj
+    $result = ConvertFrom-NetworkInput -NetworkInput $obj
     ($result.IP -eq "10.0.0.0") -and
     ($result.SubnetMask -eq "255.255.255.0") -and
     ($result.Format -eq "Traditional")

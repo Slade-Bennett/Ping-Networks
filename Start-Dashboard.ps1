@@ -596,13 +596,13 @@ FROM [dbo].[Scans]
                 Import-Module $modulePath -Force -ErrorAction Stop
 
                 # Parse network and execute scan
-                $networkData = Parse-NetworkInput -NetworkInput $Network
+                $networkData = ConvertFrom-NetworkInput -NetworkInput $Network
 
                 if (-not $networkData) {
                     throw "Failed to parse network input: $Network"
                 }
 
-                $hosts = Get-UsableHosts -NetworkAddress $networkData.NetworkAddress -CIDR $networkData.CIDR
+                $hosts = Get-UsableHosts -NetworkAddress $networkData.IP -SubnetMask $networkData.SubnetMask
 
                 if ($MaxPings -and $MaxPings -gt 0) {
                     $hosts = $hosts | Select-Object -First $MaxPings
@@ -612,7 +612,7 @@ FROM [dbo].[Scans]
                     throw "No hosts found in network: $Network"
                 }
 
-                $results = Start-Ping -Hosts $hosts -Network $Network -Throttle $Throttle -Timeout $Timeout -Count $Count
+                $results = Invoke-HostPing -Hosts $hosts -Throttle $Throttle -Timeout $Timeout -Count $Count
 
                 return $results
             }

@@ -191,7 +191,7 @@ function Get-UsableHosts {
 
 <#
 .SYNOPSIS
-    Pings a list of host IP addresses in parallel using PowerShell runspaces.
+    Invokes ICMP ping operations on a list of host IP addresses in parallel using PowerShell runspaces.
 .DESCRIPTION
     This function performs parallel ICMP ping tests on multiple hosts using PowerShell runspaces
     for high-performance concurrency. For each host, it attempts to:
@@ -253,11 +253,11 @@ function Get-UsableHosts {
     - PingsSent (int): Total number of pings sent.
     - PingsReceived (int): Total number of pings received.
 .EXAMPLE
-    Start-Ping -Hosts @("192.168.1.1", "192.168.1.10", "8.8.8.8") -Throttle 50
+    Invoke-HostPing -Hosts @("192.168.1.1", "192.168.1.10", "8.8.8.8") -Throttle 50
     # Pings three hosts with runspace pool size of 50
 .EXAMPLE
     $hostList = Get-UsableHosts -IP "172.16.0.0" -SubnetMask "255.255.255.0"
-    $results = Start-Ping -Hosts $hostList -Throttle 100
+    $results = Invoke-HostPing -Hosts $hostList -Throttle 100
     $results | Where-Object Reachable | Format-Table -AutoSize
     # Pings all hosts in 172.16.0.0/24 with high concurrency
 .NOTES
@@ -265,7 +265,7 @@ function Get-UsableHosts {
     Uses runspaces for optimal performance on large networks.
     Requires PowerShell 5.0+ (runspaces available since PowerShell 2.0).
 #>
-function Start-Ping {
+function Invoke-HostPing {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -297,14 +297,14 @@ function Start-Ping {
     # Start timing for scan rate calculation
     $startTime = Get-Date
 
-    Write-Verbose "Start-Ping: Beginning ping of $($Hosts.Count) hosts using runspace pool (throttle: $Throttle)"
+    Write-Verbose "Invoke-HostPing: Beginning ping of $($Hosts.Count) hosts using runspace pool (throttle: $Throttle)"
 
     # Create runspace pool for parallel execution
     # Min threads: 1, Max threads: $Throttle
     $runspacePool = [runspacefactory]::CreateRunspacePool(1, $Throttle)
     $runspacePool.Open()
 
-    Write-Verbose "Start-Ping: Runspace pool created with $Throttle max concurrent threads"
+    Write-Verbose "Invoke-HostPing: Runspace pool created with $Throttle max concurrent threads"
 
     # Script block for ping operation (will run in each runspace)
     $pingScriptBlock = {
@@ -454,7 +454,7 @@ function Start-Ping {
         })
     }
 
-    Write-Verbose "Start-Ping: Dispatched $($runspaces.Count) runspaces, waiting for completion..."
+    Write-Verbose "Invoke-HostPing: Dispatched $($runspaces.Count) runspaces, waiting for completion..."
 
     # Poll for completion and collect results with progress tracking
     $completedCount = 0
@@ -479,7 +479,7 @@ function Start-Ping {
                 }
                 catch {
                     # Handle errors gracefully - create a failure result
-                    Write-Verbose "Start-Ping: Error collecting result for host $($runspace.Host): $_"
+                    Write-Verbose "Invoke-HostPing: Error collecting result for host $($runspace.Host): $_"
                     $allResults.Add([PSCustomObject]@{
                         Host            = $runspace.Host
                         Reachable       = $false
@@ -545,7 +545,7 @@ function Start-Ping {
     # Clear progress bar
     Write-Progress -Id 2 -Activity "Pinging Hosts (Runspaces)" -Completed
 
-    Write-Verbose "Start-Ping: Finished pinging all $totalHosts hosts using runspaces"
+    Write-Verbose "Invoke-HostPing: Finished pinging all $totalHosts hosts using runspaces"
     return $allResults
 }
 
@@ -626,17 +626,17 @@ function Get-IPRange {
     [PSCustomObject]
     Returns a normalized object with properties: IP, SubnetMask, CIDR, Format, Range
 .EXAMPLE
-    Parse-NetworkInput -NetworkInput "10.0.0.0/24"
+    ConvertFrom-NetworkInput -NetworkInput "10.0.0.0/24"
     # Returns: @{ IP = "10.0.0.0"; SubnetMask = "255.255.255.0"; CIDR = 24; Format = "CIDR" }
 .EXAMPLE
-    Parse-NetworkInput -NetworkInput "192.168.1.1-192.168.1.50"
+    ConvertFrom-NetworkInput -NetworkInput "192.168.1.1-192.168.1.50"
     # Returns: @{ IP = "192.168.1.0"; SubnetMask = "255.255.255.0"; CIDR = 24; Format = "Range"; Range = @("192.168.1.1", "192.168.1.50") }
 .EXAMPLE
     $obj = [PSCustomObject]@{ IP = "10.0.0.0"; 'Subnet Mask' = "255.255.255.0"; CIDR = "24" }
-    Parse-NetworkInput -NetworkInput $obj
+    ConvertFrom-NetworkInput -NetworkInput $obj
     # Returns normalized object
 #>
-function Parse-NetworkInput {
+function ConvertFrom-NetworkInput {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -646,18 +646,18 @@ function Parse-NetworkInput {
     try {
         # Case 1: String input - could be CIDR notation or IP range
         if ($NetworkInput -is [string]) {
-            return Parse-StringNetwork -NetworkString $NetworkInput
+            return ConvertFrom-NetworkString -NetworkString $NetworkInput
         }
 
         # Case 2: Object with 'Network' property (simplified format)
         if ($NetworkInput.PSObject.Properties['Network'] -and $NetworkInput.Network) {
             # Recursively parse the Network property value
-            return Parse-NetworkInput -NetworkInput $NetworkInput.Network
+            return ConvertFrom-NetworkInput -NetworkInput $NetworkInput.Network
         }
 
         # Case 3: Traditional object format with IP and Subnet Mask/CIDR
         if ($NetworkInput.IP -and ($NetworkInput.'Subnet Mask' -or $NetworkInput.CIDR)) {
-            return Parse-TraditionalNetwork -NetworkObject $NetworkInput
+            return ConvertFrom-NetworkObject -NetworkObject $NetworkInput
         }
 
         # Invalid format
@@ -672,12 +672,12 @@ function Parse-NetworkInput {
 
 <#
 .SYNOPSIS
-    Internal helper to parse string-based network input (CIDR or Range).
+    Internal helper to convert string-based network input (CIDR or Range).
 .DESCRIPTION
-    Parses network strings in CIDR notation (e.g., "10.0.0.0/24") or
-    IP range notation (e.g., "10.0.0.1-10.0.0.50").
+    Converts network strings in CIDR notation (e.g., "10.0.0.0/24") or
+    IP range notation (e.g., "10.0.0.1-10.0.0.50") to normalized network objects.
 #>
-function Parse-StringNetwork {
+function ConvertFrom-NetworkString {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -737,11 +737,12 @@ function Parse-StringNetwork {
 
 <#
 .SYNOPSIS
-    Internal helper to parse traditional network object format.
+    Internal helper to convert traditional network object format.
 .DESCRIPTION
-    Parses network objects with IP, Subnet Mask, and/or CIDR properties.
+    Converts network objects with IP, Subnet Mask, and/or CIDR properties
+    to normalized network objects.
 #>
-function Parse-TraditionalNetwork {
+function ConvertFrom-NetworkObject {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -773,4 +774,4 @@ function Parse-TraditionalNetwork {
     }
 }
 
-Export-ModuleMember -Function Get-UsableHosts, Start-Ping, Parse-NetworkInput, Get-IPRange
+Export-ModuleMember -Function Get-UsableHosts, Invoke-HostPing, ConvertFrom-NetworkInput, Get-IPRange
