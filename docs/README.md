@@ -92,10 +92,10 @@ See `dashboard/README.md` for complete documentation.
 
 ### Command Line Mode
 
-The main script `Ping-Networks.ps1` is located in the root directory. You can run it as follows:
+The main script `Invoke-NetworkScan.ps1` is located in the root directory. You can run it as follows:
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Excel -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Excel -Html
 ```
 
 ### Input File Formats
@@ -172,7 +172,7 @@ The script supports multiple input file formats for maximum flexibility:
 ### Basic Usage
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx'
 ```
 
 This will ping all the networks in the `NetworkData.xlsx` file and create a new Excel file in your Documents folder with the results (default behavior).
@@ -180,7 +180,7 @@ This will ping all the networks in the `NetworkData.xlsx` file and create a new 
 ### Use CSV Input
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html
 ```
 
 Read networks from CSV file and generate HTML report. CSV format is useful when Excel is not installed.
@@ -188,7 +188,7 @@ Read networks from CSV file and generate HTML report. CSV format is useful when 
 ### Use Text File Input
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.txt' -Excel -Json
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.txt' -Excel -Json
 ```
 
 Read networks from text file (one network per line) and generate Excel and JSON reports. Simplest format for quick scans.
@@ -196,7 +196,7 @@ Read networks from text file (one network per line) and generate Excel and JSON 
 ### Generate Multiple Formats
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Excel -Html -Json
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Excel -Html -Json
 ```
 
 Generate Excel, HTML, and JSON reports simultaneously in the Documents folder. All files will have the same timestamp.
@@ -204,7 +204,7 @@ Generate Excel, HTML, and JSON reports simultaneously in the Documents folder. A
 ### Custom Output Directory
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html
 ```
 
 Create Excel and HTML reports in a custom directory (`C:\Reports`).
@@ -212,7 +212,7 @@ Create Excel and HTML reports in a custom directory (`C:\Reports`).
 ### Limit Hosts Per Network
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -MaxPings 10
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -MaxPings 10
 ```
 
 Generate HTML report scanning only the first 10 usable hosts in each network.
@@ -220,7 +220,7 @@ Generate HTML report scanning only the first 10 usable hosts in each network.
 ### All Output Formats
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html -Json -Xml -Csv
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -OutputDirectory 'C:\Reports' -Excel -Html -Json -Xml -Csv
 ```
 
 Generate all available output formats in a custom directory from a single scan.
@@ -228,7 +228,7 @@ Generate all available output formats in a custom directory from a single scan.
 ### Exclude Specific IPs
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.txt' -Html -ExcludeIPs "10.0.0.1","10.0.0.254"
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.txt' -Html -ExcludeIPs "10.0.0.1","10.0.0.254"
 ```
 
 Scan networks but exclude gateway IPs (commonly .1 and .254).
@@ -236,7 +236,7 @@ Scan networks but exclude gateway IPs (commonly .1 and .254).
 ### Exclude IP Range
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html -ExcludeIPs "192.168.1.100-192.168.1.110"
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.csv' -Html -ExcludeIPs "192.168.1.100-192.168.1.110"
 ```
 
 Exclude an entire range of IPs from scanning (useful for reserved DHCP ranges).
@@ -244,7 +244,7 @@ Exclude an entire range of IPs from scanning (useful for reserved DHCP ranges).
 ### Scan Only Odd IPs
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -OddOnly
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html -OddOnly
 ```
 
 Scan only odd IP addresses. Useful for dual-stack networks or specific network designs.
@@ -252,7 +252,7 @@ Scan only odd IP addresses. Useful for dual-stack networks or specific network d
 ### Save Scan History
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -HistoryPath 'C:\ScanHistory' -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -HistoryPath 'C:\ScanHistory' -Html
 ```
 
 Scan networks and save the results to a history directory. Each scan is saved as a timestamped JSON file for future comparison and trend analysis.
@@ -260,7 +260,7 @@ Scan networks and save the results to a history directory. Each scan is saved as
 ### Compare Against Baseline
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -CompareBaseline 'C:\ScanHistory\ScanHistory_20251225_120000.json' -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -CompareBaseline 'C:\ScanHistory\ScanHistory_20251225_120000.json' -Html
 ```
 
 Scan networks and compare results against a previous scan. Generates a change detection report showing new devices, offline devices, and recovered devices.
@@ -268,7 +268,7 @@ Scan networks and compare results against a previous scan. Generates a change de
 ### History with Baseline Comparison
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -HistoryPath 'C:\ScanHistory' -CompareBaseline 'C:\ScanHistory\ScanHistory_20251225_120000.json' -Html -Json
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -HistoryPath 'C:\ScanHistory' -CompareBaseline 'C:\ScanHistory\ScanHistory_20251225_120000.json' -Html -Json
 ```
 
 Scan networks, save the current results to history, and compare against a previous baseline. Generates both scan results and a change detection report in HTML and JSON formats.
@@ -276,7 +276,7 @@ Scan networks, save the current results to history, and compare against a previo
 ### High-Performance Scanning
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Throttle 100 -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Throttle 100 -Html
 ```
 
 Scan networks with maximum concurrency (100 simultaneous pings) for fastest performance. Ideal for large networks or fast connections.
@@ -284,7 +284,7 @@ Scan networks with maximum concurrency (100 simultaneous pings) for fastest perf
 ### Resource-Constrained Scanning
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Throttle 20 -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Throttle 20 -Html
 ```
 
 Scan networks with lower concurrency to reduce CPU and memory usage. Useful for resource-constrained systems or slower connections.
@@ -292,7 +292,7 @@ Scan networks with lower concurrency to reduce CPU and memory usage. Useful for 
 ### Email Notifications on Completion
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Html `
     -EmailOnCompletion `
     -EmailTo "admin@example.com" -EmailFrom "scanner@example.com" `
     -SmtpServer "smtp.gmail.com" -SmtpPort 587 -UseSSL `
@@ -304,7 +304,7 @@ Scan networks and send email notification when complete with summary statistics 
 ### Email Alerts for Network Changes
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -HistoryPath 'C:\ScanHistory' `
     -CompareBaseline 'C:\ScanHistory\ScanHistory_20251225_120000.json' `
     -EmailOnChanges `
@@ -333,14 +333,14 @@ Create a Windows Scheduled Task to automatically scan networks daily at 3 AM wit
 
 ```powershell
 # First time: Initialize database schema
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -DatabaseExport -InitializeDatabase `
     -DatabaseConnectionString "Server=localhost;Database=PingNetworks;Integrated Security=True" `
     -DatabaseType "SQLServer" `
     -Excel -Html
 
 # Subsequent scans: Export to existing database
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -DatabaseExport `
     -DatabaseConnectionString "Server=localhost;Database=PingNetworks;Integrated Security=True" `
     -Excel
@@ -356,7 +356,7 @@ Export scan results to SQL Server database for long-term storage, analysis, and 
 ### Advanced Ping with Response Time Statistics
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Count 5 -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -Count 5 -Html
 ```
 
 Ping each host 5 times and calculate response time statistics (min, max, average) and packet loss percentage. Provides more reliable latency measurements.
@@ -364,7 +364,7 @@ Ping each host 5 times and calculate response time statistics (min, max, average
 ### MTU Path Testing
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -BufferSize 1500 -Count 3 -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -BufferSize 1500 -Count 3 -Html
 ```
 
 Test network paths with larger packets (1500 bytes) to identify MTU issues. Useful for diagnosing packet fragmentation problems.
@@ -372,7 +372,7 @@ Test network paths with larger packets (1500 bytes) to identify MTU issues. Usef
 ### Custom TTL for Hop Testing
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -TimeToLive 64 -Html
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' -TimeToLive 64 -Html
 ```
 
 Use custom TTL value to test maximum hop count or detect routing loops. Lower TTL values can help identify routing issues.
@@ -380,7 +380,7 @@ Use custom TTL value to test maximum hop count or detect routing loops. Lower TT
 ### Comprehensive Ping Diagnostics
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -Count 10 -BufferSize 1472 -TimeToLive 64 -Retries 2 `
     -Throttle 100 -Html -Json
 ```
@@ -390,7 +390,7 @@ Full diagnostic scan with 10 pings per host, large packets for MTU testing, cust
 ### Configurable Alert Thresholds
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -HistoryPath 'C:\ScanHistory' `
     -CompareBaseline 'C:\ScanHistory\ScanHistory_20251225_120000.json' `
     -EmailOnChanges -MinChangesToAlert 5 `
@@ -403,7 +403,7 @@ Only send email alerts when 5 or more devices change status. Prevents alert fati
 ### Percentage-Based Alerting
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -CompareBaseline 'baseline.json' -EmailOnChanges -MinChangePercentage 10 `
     -EmailTo "security@example.com" -EmailFrom "scanner@example.com" `
     -SmtpServer "smtp.office365.com" -UseSSL
@@ -414,7 +414,7 @@ Only alert when 10% or more of the network changes. Ideal for large networks whe
 ### Alert on New Devices Only
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -CompareBaseline 'baseline.json' -EmailOnChanges -AlertOnNewOnly `
     -EmailTo "security@example.com" -EmailFrom "scanner@example.com" `
     -SmtpServer "smtp.gmail.com" -UseSSL
@@ -425,7 +425,7 @@ Security-focused scanning that only alerts when unauthorized devices join the ne
 ### Automated History Retention
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -HistoryPath 'C:\ScanHistory' -RetentionDays 30 -Html
 ```
 
@@ -434,7 +434,7 @@ Scan networks, save history, and automatically delete scan files older than 30 d
 ### Trend Analysis Report
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -HistoryPath 'C:\ScanHistory' -GenerateTrendReport -TrendDays 90 -Html
 ```
 
@@ -443,7 +443,7 @@ Analyze 90 days of scan history to identify availability patterns. Shows uptime 
 ### Comprehensive Monitoring Setup
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -HistoryPath 'C:\NetworkMonitoring' -RetentionDays 60 `
     -CompareBaseline 'C:\NetworkMonitoring\ScanHistory_20251220_030000.json' `
     -GenerateTrendReport -TrendDays 60 `
@@ -459,14 +459,14 @@ Full enterprise monitoring: saves 60 days of history, generates trend analysis, 
 ### Checkpoint and Resume Large Scans
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -CheckpointPath 'C:\ScanCheckpoints' -CheckpointInterval 50 -Html
 ```
 
 Save checkpoint every 50 hosts scanned. If the scan is interrupted (Ctrl+C, power loss, etc.), you can resume from the last checkpoint:
 
 ```powershell
-.\Ping-Networks.ps1 -ResumeCheckpoint 'C:\ScanCheckpoints\Checkpoint_20251228_120000.json' -Html
+.\Invoke-NetworkScan.ps1 -ResumeCheckpoint 'C:\ScanCheckpoints\Checkpoint_20251228_120000.json' -Html
 ```
 
 The resumed scan skips already-scanned hosts and continues where it left off, preserving all previous results.
@@ -474,7 +474,7 @@ The resumed scan skips already-scanned hosts and continues where it left off, pr
 ### Interactive Pause and Resume
 
 ```powershell
-.\Ping-Networks.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
+.\Invoke-NetworkScan.ps1 -InputPath '.\sample-data\NetworkData.xlsx' `
     -CheckpointPath 'C:\ScanCheckpoints' -Html
 ```
 
@@ -492,7 +492,7 @@ The project is organized into modular components for maintainability:
 ```
 Ping-Networks/
 ├── modules/
-│   ├── Ping-Networks.psm1   # Core functions: subnet calculation, parallel ping
+│   ├── NetworkScanner.psm1   # Core functions: subnet calculation, parallel ping
 │   ├── ExcelUtils.psm1       # Excel COM automation utilities
 │   ├── ReportUtils.psm1      # Report generation (HTML, JSON, XML)
 │   └── DatabaseUtils.psm1    # Database export (SQL Server, MySQL, PostgreSQL)
@@ -509,7 +509,7 @@ Ping-Networks/
 ├── docs/
 │   ├── README.md             # This file
 │   └── ROADMAP.md            # Development roadmap
-├── Ping-Networks.ps1         # Main entry point script
+├── Invoke-NetworkScan.ps1         # Main entry point script
 ├── Ping-Networks-GUI.ps1     # WPF graphical user interface
 └── Start-Dashboard.ps1       # Web dashboard server
 ```

@@ -76,7 +76,7 @@ if (-not (Get-Module -ListAvailable -Name Pode)) {
 
 # Import required modules
 Import-Module Pode -Force
-Import-Module (Join-Path $PSScriptRoot "modules\Ping-Networks.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "modules\NetworkScanner.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\ExcelUtils.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\ReportUtils.psm1") -Force
 

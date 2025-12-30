@@ -4,7 +4,7 @@ Write-Host "Quick Integration Test - Refactored Code" -ForegroundColor Cyan
 Write-Host "==========================================`n" -ForegroundColor Cyan
 
 # Import module
-$modulePath = Join-Path $PSScriptRoot "..\modules\Ping-Networks.psm1"
+$modulePath = Join-Path $PSScriptRoot "..\modules\NetworkScanner.psm1"
 Import-Module $modulePath -Force -Verbose:$false
 
 # Test 1: Parse CIDR notation

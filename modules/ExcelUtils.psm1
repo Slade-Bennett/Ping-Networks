@@ -46,7 +46,21 @@ function New-ExcelSession {
         return $excel
     }
     catch {
-        Write-Error "Failed to create Excel session: $_"
+        Write-Error @"
+Failed to create Excel COM object.
+
+Possible causes:
+  - Microsoft Excel is not installed
+  - Excel installation is corrupted
+  - COM registration is broken
+
+Solution:
+  - Ensure Microsoft Excel is installed
+  - Try restarting PowerShell as Administrator
+  - If Excel is installed, run: regsvr32 /i:user excel.exe
+
+Error details: $_
+"@
         return $null
     }
 }
@@ -124,7 +138,7 @@ function Get-ExcelWorkbook {
         return $workbook
     }
     catch {
-        Write-Error "Failed to get workbook for path '$Path': $_"
+        Write-Error "Failed to open or create Excel workbook at '$Path'. Ensure the file is not open in another program and you have write permissions. Error: $_"
         if ($workbook) {
             [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($workbook) | Out-Null
         }

@@ -10,7 +10,7 @@ This document summarizes the code quality improvements implemented on 2025-12-29
 
 ### 1. Parse-NetworkInput Function Refactoring
 
-**File:** `modules/Ping-Networks.psm1`
+**File:** `modules/NetworkScanner.psm1`
 
 **Problem:** The `Parse-NetworkInput` function contained deeply nested if-else statements that made the code difficult to read, debug, and maintain.
 

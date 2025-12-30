@@ -6,7 +6,7 @@ Write-Host "Testing ConvertFrom-NetworkInput Refactoring" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Cyan
 
 # Import the module
-$modulePath = Join-Path $PSScriptRoot "..\modules\Ping-Networks.psm1"
+$modulePath = Join-Path $PSScriptRoot "..\modules\NetworkScanner.psm1"
 Import-Module $modulePath -Force
 
 $script:testsPassed = 0

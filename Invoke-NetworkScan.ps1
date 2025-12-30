@@ -340,7 +340,7 @@ if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) {
     $VerbosePreference = 'Continue'
 }
 Import-Module (Join-Path $PSScriptRoot "modules\ExcelUtils.psm1") -Force
-Import-Module (Join-Path $PSScriptRoot "modules\Ping-Networks.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "modules\NetworkScanner.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\ReportUtils.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "modules\DatabaseUtils.psm1") -Force
 
@@ -410,10 +410,87 @@ if ($CheckpointPath) {
     }
 }
 
+#region PARAMETER VALIDATION
+
 # Validate parameters: either InputPath or ResumeCheckpoint must be provided
 if (-not $InputPath -and -not $ResumeCheckpoint) {
     throw "Either -InputPath or -ResumeCheckpoint must be specified."
 }
+
+# Early input file validation (if not resuming from checkpoint)
+if ($InputPath -and -not $ResumeCheckpoint) {
+    # Check file existence
+    if (-not (Test-Path -Path $InputPath)) {
+        throw "Input file not found: '$InputPath'. Please verify the path exists."
+    }
+
+    # Validate file format
+    $inputExtension = [System.IO.Path]::GetExtension($InputPath).ToLower()
+    $supportedExtensions = @('.xlsx', '.csv', '.txt')
+    if ($inputExtension -notin $supportedExtensions) {
+        throw @"
+Unsupported file format: '$inputExtension'
+
+Supported formats:
+  - Excel (.xlsx): With 'Network' column or 'IP'/'Subnet Mask'/'CIDR' columns
+  - CSV (.csv): Same format as Excel
+  - Text (.txt): One network per line (CIDR or Range notation)
+
+Please provide a file in one of the supported formats.
+"@
+    }
+
+    # Check file is not empty
+    $fileInfo = Get-Item -Path $InputPath
+    if ($fileInfo.Length -eq 0) {
+        throw "Input file is empty: '$InputPath'. Please provide a file with network data."
+    }
+}
+
+# Validate mutually exclusive parameters
+if ($OddOnly -and $EvenOnly) {
+    throw "Parameters -OddOnly and -EvenOnly are mutually exclusive. Please specify only one."
+}
+
+if ($AlertOnNewOnly -and $AlertOnOfflineOnly) {
+    throw "Parameters -AlertOnNewOnly and -AlertOnOfflineOnly are mutually exclusive. Please specify only one."
+}
+
+# Validate dependent parameters - Email notifications
+if (($EmailOnCompletion -or $EmailOnChanges) -and (-not $EmailTo -or -not $EmailFrom -or -not $SmtpServer)) {
+    throw @"
+Email notifications require all of the following parameters:
+  -EmailTo (recipient email address)
+  -EmailFrom (sender email address)
+  -SmtpServer (SMTP server address, e.g., 'smtp.gmail.com')
+
+Optional parameters:
+  -SmtpUsername (for SMTP authentication)
+  -SmtpPassword (for SMTP authentication)
+  -SmtpPort (default: 587)
+  -UseSSL (recommended for secure connections)
+
+Example:
+  -EmailTo "admin@example.com" -EmailFrom "scanner@example.com" -SmtpServer "smtp.gmail.com" -UseSSL
+"@
+}
+
+# Validate trend report dependencies
+if ($GenerateTrendReport -and -not $HistoryPath) {
+    throw "Trend report generation (-GenerateTrendReport) requires -HistoryPath to be specified with existing scan history."
+}
+
+# Validate baseline comparison dependencies
+if ($CompareBaseline -and -not (Test-Path -Path $CompareBaseline)) {
+    throw "Baseline file not found: '$CompareBaseline'. Please provide a valid path to a previous scan result (JSON format)."
+}
+
+# Validate database export dependencies
+if ($DatabaseExport -and -not $DatabaseConnectionString) {
+    throw "Database export (-DatabaseExport) requires -DatabaseConnectionString to be specified."
+}
+
+#endregion
 
 # Load checkpoint if resuming
 if ($ResumeCheckpoint) {

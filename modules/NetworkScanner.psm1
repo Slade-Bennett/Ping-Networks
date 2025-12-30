@@ -600,7 +600,8 @@ function Get-IPRange {
         }
 
         Write-Verbose "Generated $($ips.Count) IPs from range $StartIP-$EndIP"
-        return $ips
+        # Use comma operator to force array return (prevents PowerShell from unwrapping single-element arrays)
+        return ,$ips
     }
     catch {
         Write-Error "Failed to generate IP range from '$StartIP' to '$EndIP': $_"
@@ -661,11 +662,23 @@ function ConvertFrom-NetworkInput {
         }
 
         # Invalid format
-        Write-Error "Invalid network object. Must have either: (1) 'Network' property with CIDR/Range notation, (2) 'IP' and 'Subnet Mask'/'CIDR' properties, or (3) CIDR/Range string format"
+        $inputJson = try { $NetworkInput | ConvertTo-Json -Compress -Depth 1 } catch { "$NetworkInput" }
+        Write-Error @"
+Invalid network input format.
+
+Expected formats:
+  1. String with CIDR notation: '10.0.0.0/24'
+  2. String with IP range: '192.168.1.1-192.168.1.50'
+  3. Object with 'Network' property containing CIDR/Range
+  4. Object with 'IP' and 'Subnet Mask' properties
+  5. Object with 'IP' and 'CIDR' properties
+
+Your input: $inputJson
+"@
         return $null
     }
     catch {
-        Write-Error "Failed to parse network input '$NetworkInput': $_"
+        Write-Error "Failed to parse network input. Error: $_"
         return $null
     }
 }
@@ -691,7 +704,7 @@ function ConvertFrom-NetworkString {
 
         # Validate CIDR range (0-32)
         if ($cidr -lt 0 -or $cidr -gt 32) {
-            Write-Error "Invalid CIDR value '$cidr'. Must be between 0 and 32."
+            Write-Error "Invalid CIDR value '$cidr'. Must be between 0 and 32 (e.g., /24 for Class C network, /16 for Class B network, /8 for Class A network)."
             return $null
         }
 
@@ -717,7 +730,7 @@ function ConvertFrom-NetworkString {
             [System.Net.IPAddress]::Parse($endIP) | Out-Null
         }
         catch {
-            Write-Error "Invalid IP address in range '$NetworkString': $_"
+            Write-Error "Invalid IP address in range '$NetworkString'. Both start and end IPs must be valid IPv4 addresses (e.g., '192.168.1.1-192.168.1.50'). Error: $_"
             return $null
         }
 
@@ -730,8 +743,40 @@ function ConvertFrom-NetworkString {
         }
     }
 
+    # Single IP: "10.0.0.1" (treat as single-host range)
+    if ($NetworkString -match '^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$') {
+        $singleIP = $matches[1]
+
+        # Validate IP address
+        try {
+            [System.Net.IPAddress]::Parse($singleIP) | Out-Null
+        }
+        catch {
+            Write-Error "Invalid IP address: '$NetworkString'. Must be a valid IPv4 address (e.g., '192.168.1.1'). Error: $_"
+            return $null
+        }
+
+        # Treat single IP as a range with same start and end
+        return [PSCustomObject]@{
+            IP = $singleIP
+            SubnetMask = $null
+            CIDR = $null
+            Format = "Range"
+            Range = @($singleIP, $singleIP)
+        }
+    }
+
     # Invalid format
-    Write-Error "Invalid network string format: '$NetworkString'. Expected CIDR notation (e.g., '10.0.0.0/24') or IP range (e.g., '10.0.0.1-10.0.0.50')"
+    Write-Error @"
+Invalid network string format: '$NetworkString'
+
+Expected formats:
+  - CIDR notation: '10.0.0.0/24' or '192.168.1.0/28'
+  - IP range: '10.0.0.1-10.0.0.50' or '192.168.1.1-192.168.1.100'
+  - Single IP: '172.16.0.1'
+
+Your input did not match any of these patterns.
+"@
     return $null
 }
 
@@ -753,7 +798,7 @@ function ConvertFrom-NetworkObject {
     if ($NetworkObject.CIDR -and -not $NetworkObject.'Subnet Mask') {
         $cidrValue = [int]$NetworkObject.CIDR
         if ($cidrValue -lt 0 -or $cidrValue -gt 32) {
-            Write-Error "Invalid CIDR value '$cidrValue'. Must be between 0 and 32."
+            Write-Error "Invalid CIDR value '$cidrValue'. Must be between 0 and 32 (e.g., /24 for Class C network, /16 for Class B network, /8 for Class A network)."
             return $null
         }
         $subnetMask = ConvertFrom-CIDR -CIDR $cidrValue

@@ -10,7 +10,7 @@ $testsFailed = 0
 $startTime = Get-Date
 
 # Import module
-Import-Module (Join-Path $PSScriptRoot "..\modules\Ping-Networks.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "..\modules\NetworkScanner.psm1") -Force
 
 function Test-Function {
     param(
